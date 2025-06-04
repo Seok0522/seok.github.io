@@ -1,1107 +1,494 @@
-<html lang="ko"><head><script>(function(firebaseConfig, initialAuthToken, appId) {
-        window.__firebase_config = firebaseConfig;
-        window.__initial_auth_token = initialAuthToken;
-        window.__app_id = appId;
-            })("\n{\n  \"apiKey\": \"AIzaSyCqyCcs2R2e7AegGjvFAwG98wlamtbHvZY\",\n  \"authDomain\": \"bard-frontend.firebaseapp.com\",\n  \"projectId\": \"bard-frontend\",\n  \"storageBucket\": \"bard-frontend.firebasestorage.app\",\n  \"messagingSenderId\": \"175205271074\",\n  \"appId\": \"1:175205271074:web:2b7bd4d34d33bf38e6ec7b\"\n}\n","eyJhbGciOiJSUzI1NiIsImtpZCI6IjhmODcxYTU0ODRjYWM0MjU5NTBiNzhiNGZhNWMxZGZlMjkzYjgwYWEiLCJ0eXAiOiJKV1QifQ.eyJzdWIiOiJmaXJlYmFzZS1hZG1pbnNkay1mYnN2Y0BiYXJkLWZyb250ZW5kLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwiYXVkIjoiaHR0cHM6XC9cL2lkZW50aXR5dG9vbGtpdC5nb29nbGVhcGlzLmNvbVwvZ29vZ2xlLmlkZW50aXR5LmlkZW50aXR5dG9vbGtpdC52MS5JZGVudGl0eVRvb2xraXQiLCJ1aWQiOiIwNTk1NDQ1Njk2NTIzODEyNjA5NiIsImlzcyI6ImZpcmViYXNlLWFkbWluc2RrLWZic3ZjQGJhcmQtZnJvbnRlbmQuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCJleHAiOjE3NDkwMjQ3NzEsImlhdCI6MTc0OTAyMTE3MSwiYWxnIjoiUlMyNTYifQ.WU-Qx56_hmiaA48uZdWLnfq2CEBxBTwC-9Pdtamz7m3HuiyKa6jce4XwuyBtfL5lx78ACuNkb3RQZJp3BPgYunzIKroAsmE-FUSmOMNOD3KMew2Qsn2kbcSK4fDp4sIDccMbC2OnJMsSdeHY01Jtr89XpUuwcp9jE5CwfDTjMLicdosGx65tJQHUCPSFKasPP7rGixj_ok2RO1T9NplpXGa7Jr875sEeugB9huZJDPnJM_ftiM2EoV1KvE7NjNmhyAH7V2nHdhun4Zb6b4WAe4tKfQpY3XYjeQqQwroNCV8cGh1odJsjQFbvhpvf-29uMlKV6I5qGBcjERZfeu9d7w","c_2409b48c7f145069_seah_besteel_infographic_spa_v1-171")</script><script>(function() {
-  // Ensure this script is executed only once
-  if (window.firebaseAuthBridgeScriptLoaded) {
-    return;
-  }
-  window.firebaseAuthBridgeScriptLoaded = true;
-
-  let nextTokenPromiseId = 0;
-
-  // Stores { resolve, reject } for ongoing token requests
-  const pendingTokenPromises = {};
-
-  // Listen for messages from the Host Application
-  window.addEventListener('message', function(event) {
-
-    const messageData = event.data;
-
-  if (messageData && messageData.type === 'RESOLVE_NEW_FIREBASE_TOKEN') {
-      const { success, token, error, promiseId } = messageData ?? {};
-      if (pendingTokenPromises[promiseId]) {
-        if (success) {
-          pendingTokenPromises[promiseId].resolve(token);
-        } else {
-          pendingTokenPromises[promiseId].reject(new Error(error || 'Token refresh failed from host.'));
-        }
-        delete pendingTokenPromises[promiseId];
-      }
-    }
-  });
-
-  // Expose a function for the Generated App to request a new Firebase token
-  window.requestNewFirebaseToken = function() {
-    const currentPromiseId = nextTokenPromiseId++;
-    const promise = new Promise((resolve, reject) => {
-      pendingTokenPromises[currentPromiseId] = { resolve, reject };
-    });
-    if (window.parent && window.parent !== window) {
-      window.parent.postMessage({
-        type: 'REQUEST_NEW_FIREBASE_TOKEN',
-        promiseId: currentPromiseId
-      }, '*');
-    } else {
-      pendingTokenPromises[currentPromiseId].reject(new Error('No parent window to request token from.'));
-      delete pendingTokenPromises[currentPromiseId];
-    }
-    return promise;
-  };
-})();</script><script>let realOriginalGetUserMedia = null;
-if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-  realOriginalGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-}
-
-(function() {
-  if (navigator.mediaDevices && navigator.mediaDevices.__proto__) {
-    try {
-      Object.defineProperty(navigator.mediaDevices.__proto__, 'getUserMedia', {
-        get: function() {
-          return undefined; // Or throw an error
-        },
-        configurable: false
-      });
-    } catch (error) {
-      console.error("Error defining prototype getter:", error);
-    }
-  }
-})();
-
-(function() {
-  let originalGetUserMedia = realOriginalGetUserMedia;
-
-  const pendingMediaResolvers = {};
-  let nextMediaPromiseId = 0;
-
-  function interceptGetUserMedia() {
-    if (navigator.mediaDevices) {
-      Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
-        value: function(constraints) {
-          const mediaPromiseId = nextMediaPromiseId++;
-          const promise = new Promise((resolve, reject) => {
-            pendingMediaResolvers[mediaPromiseId] = (granted) => {
-              delete pendingMediaResolvers[mediaPromiseId];
-              if (granted) {
-                if (originalGetUserMedia) {
-                  originalGetUserMedia(constraints).then(resolve).catch(reject);
-                } else {
-                  reject(new Error("Original getUserMedia not available."));
-                }
-              } else {
-              reject(new DOMException('Permission denied', 'NotAllowedError'));
-            }
-          };
-        });
-
-        window.parent.postMessage({
-          type: 'requestMediaPermission',
-          constraints: constraints,
-          promiseId: mediaPromiseId,
-        }, '*');
-
-        return promise;
-      },
-      writable: false,
-      configurable: false
-    });
-    }
-  }
-
-  interceptGetUserMedia();
-
-  const observer = new MutationObserver(function(mutationsList, observer) {
-    for (const mutation of mutationsList) {
-      if (mutation.type === 'reconfigured' && mutation.name === 'getUserMedia' && mutation.object === navigator.mediaDevices) {
-        interceptGetUserMedia();
-      } else if (mutation.type === 'attributes' && mutation.attributeName === 'getUserMedia' && mutation.target === navigator.mediaDevices) {
-        interceptGetUserMedia();
-      } else if (mutation.type === 'childList' && mutation.addedNodes) {
-        mutation.addedNodes.forEach(node => {
-          if (node === navigator.mediaDevices) {
-            interceptGetUserMedia();
-          }
-        });
-      }
-    }
-  });
-
-  window.addEventListener('message', function(event) {
-    if (event.data) {
-      if (event.data.type === 'resolveMediaPermission') {
-        const { promiseId, granted } = event.data;
-        if (pendingMediaResolvers[promiseId]) {
-          pendingMediaResolvers[promiseId](granted);
-        }
-      }
-    }
-  });
-
-})();</script><script>(function() {
-  const originalFetch = window.fetch;
-  const googleLlmBaseApiUrls = [
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent',
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
-    'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict',
-    'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predictLongRunning',
-    'https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predict',
-    'https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predictLongRunning',
-  ];
-
-  const pendingFetchResolvers = {};
-  let nextPromiseId = 0;
-
-  function handleStringInput(input, optionsArgument) {
-    const actualUrl = input;
-    const fetchCallArgs = [actualUrl, optionsArgument];
-    const effectiveOptions = optionsArgument || {};
-    const bodyForApiKeyCheck = effectiveOptions.body;
-    const bodyForPostMessage = effectiveOptions.body;
-    return { actualUrl, fetchCallArgs, effectiveOptions, bodyForApiKeyCheck, bodyForPostMessage };
-  }
-
-  function handleRequestInput(input, optionsArgument) {
-    const actualUrl = input.url;
-    const fetchCallArgs = [input, optionsArgument];
-    const effectiveOptions = { method: input.method, headers: new Headers(input.headers) };
-    let bodyForApiKeyCheck;
-    let bodyForPostMessage;
-
-    if (optionsArgument) {
-      if (optionsArgument.method) effectiveOptions.method = optionsArgument.method;
-      if (optionsArgument.headers) effectiveOptions.headers = new Headers(optionsArgument.headers);
-      if ('body' in optionsArgument) {
-        bodyForApiKeyCheck = optionsArgument.body;
-        bodyForPostMessage = optionsArgument.body;
-      } else {
-        bodyForApiKeyCheck = undefined;
-        bodyForPostMessage = input.body;
-      }
-    } else {
-      bodyForApiKeyCheck = undefined;
-      bodyForPostMessage = input.body;
-    }
-    return { actualUrl, fetchCallArgs, effectiveOptions, bodyForApiKeyCheck, bodyForPostMessage };
-  }
-
-  window.fetch = function(input, optionsArgument) {
-    let actualUrl;
-    let fetchCallArgs;
-    let effectiveOptions = {};
-    let bodyForApiKeyCheck;
-    let bodyForPostMessage;
-
-    if (typeof input === 'string') {
-      ({actualUrl, fetchCallArgs, effectiveOptions, bodyForApiKeyCheck, bodyForPostMessage} = handleStringInput(input, optionsArgument));
-    } else if (input instanceof Request) {
-      ({actualUrl, fetchCallArgs, effectiveOptions, bodyForApiKeyCheck, bodyForPostMessage} = handleRequestInput(input, optionsArgument));
-    } else {
-      return originalFetch.apply(window, [input, optionsArgument]);
-    }
-
-    effectiveOptions.method = effectiveOptions.method || 'GET';
-    if (!effectiveOptions.headers) {
-      effectiveOptions.headers = new Headers();
-    }
-
-
-    if (typeof actualUrl === 'string' && googleLlmBaseApiUrls.some((url) => actualUrl.startsWith(url))) {
-      let apiKeyIsNull = true;
-
-      const regex = new RegExp("models/([^:]+)");
-      const modelNameMatch = actualUrl.match(regex);
-      const modelName = modelNameMatch ? modelNameMatch[1] : 'unspecified';
-
-
-      try {
-        const urlObject = new URL(actualUrl);  // Use URL object for robust parsing
-        const apiKeyParam = urlObject.searchParams.get('key');
-        if (apiKeyParam) {
-          apiKeyIsNull = false;
-        }
-      } catch (e) {
-        // Continue checks even if URL parsing fails
-      }
-
-      if (apiKeyIsNull && effectiveOptions.headers) {
-        const h = new Headers(effectiveOptions.headers);
-        const apiKeyHeaderValue = h.get('X-API-Key') || h.get('x-api-key');
-        if (apiKeyHeaderValue) {
-          apiKeyIsNull = false;
-          return originalFetch.apply(window, fetchCallArgs);
-        }
-      }
-
-      if (apiKeyIsNull && effectiveOptions.method && ['POST', 'PUT', 'PATCH'].includes(effectiveOptions.method.toUpperCase()) && typeof bodyForApiKeyCheck === 'string') {
-        try {
-          const bodyData = JSON.parse(bodyForApiKeyCheck);
-          if (bodyData && bodyData.apiKey) {
-            apiKeyIsNull = false;
-            return originalFetch.apply(window, fetchCallArgs);
-          }
-        } catch (e) {
-          // Ignore JSON parsing errors
-        }
-      }
-
-      if(apiKeyIsNull) {
-        const promiseId = nextPromiseId++;
-        const promise = new Promise((resolve) => {
-          pendingFetchResolvers[promiseId] = (resolvedResponse) => {
-            delete pendingFetchResolvers[promiseId];
-            resolve(resolvedResponse);
-          };
-        });
-
-        let serializedBodyForPostMessage;
-        if (typeof bodyForPostMessage === 'string' || bodyForPostMessage == null) {
-            serializedBodyForPostMessage = bodyForPostMessage;
-        } else if (bodyForPostMessage instanceof ReadableStream) {
-            serializedBodyForPostMessage = null;
-        } else {
-            try {
-                serializedBodyForPostMessage = JSON.stringify(bodyForPostMessage);
-            } catch (e) {
-                serializedBodyForPostMessage = null;
-            }
-        }
-
-        const messageOptions = {
-            method: effectiveOptions.method,
-            headers: Object.fromEntries(new Headers(effectiveOptions.headers).entries()),
-            body: serializedBodyForPostMessage
-        };
-
-        window.parent.postMessage({
-          type: 'requestFetch',
-          url: actualUrl,
-          modelName: 'models/' + modelName,
-          options: messageOptions,
-          promiseId: promiseId,
-        }, '*');
-
-        return promise;
-      }
-      return originalFetch.apply(window, fetchCallArgs);
-    }
-    return originalFetch.apply(window, fetchCallArgs);
-  };
-
-  window.addEventListener('message', function(event) {
-    if (event.data && event.data.type === 'resolveFetch') {
-      const { promiseId, response } = event.data;
-      if (pendingFetchResolvers[promiseId]) {
-        try {
-          const reconstructedResponse = new Response(response.body, {
-            status: response.status,
-            statusText: response.statusText,
-            headers: new Headers(response.headers),
-          });
-          pendingFetchResolvers[promiseId](reconstructedResponse);
-        } catch (error) {
-          pendingFetchResolvers[promiseId](new Response(null, { status: 500, statusText: "Interceptor Response Reconstruction Error" }));
-        }
-      }
-    }
-  });
-
-})();</script><script>(function() {
-  const originalConsoleLog = console.log;
-  const originalConsoleError = console.error;
-
-    /**
-   * Normalizes an error event or a promise rejection reason into a structured error object.
-   * @param {*} errorEventOrReason The error object or reason.
-   * @return {object} Structured error data { message, name, stack }.
-   */
-  function getErrorObject(errorEventOrReason) {
-    if (errorEventOrReason instanceof Error) {
-      return {
-        message: errorEventOrReason.message,
-        name: errorEventOrReason.name,
-        stack: errorEventOrReason.stack,
-      };
-    }
-    // Fallback for non-Error objects.
-    try {
-      return {
-        message: JSON.stringify(errorEventOrReason),
-        name: 'UnknownErrorType',
-        stack: null,
-      };
-    } catch (e) {
-      return {
-        message: String(errorEventOrReason),
-        name: 'UnknownErrorTypeNonStringifiable',
-        stack: null,
-      };
-    }
-  }
-
-  /**
-   * Converts an array of arguments (from log/error) into a single string.
-   * Handles Error objects specially to include their message and stack.
-   * @param {Array<*>} args - Arguments passed to console methods.
-   * @return {string} A string representation of the arguments.
-   */
-  function stringifyArgs(args) {
-    return args
-      .map((arg) => {
-        if (arg instanceof Error) {
-          const {message, stack} = arg;
-          return `Error: ${message}${stack ? ('\nStack: ' + stack) : ''}`;
-        }
-        if (typeof arg === 'object' && arg !== null) {
-          try {
-            return JSON.stringify(arg);
-          } catch (error) {
-            return '[Circular Object]';
-          }
-        } else {
-          return String(arg);
-        }
-      })
-      .join(' ');
-  }
-
-  console.log = function(...args) {
-    const logString = stringifyArgs(args);
-    window.parent.postMessage({ type: 'log', message: logString }, '*');
-    originalConsoleLog.apply(console, args);
-  };
-
-  console.error = function(...args) {
-    let errorData;
-    if (args.length > 0 && args[0] instanceof Error) {
-      const err = args[0];
-      // If the first arg is an Error, capture its details.
-      errorData = {
-        type: 'error',
-        source: 'CONSOLE_ERROR',
-        ...getErrorObject(err),
-        rawArgsString: stringifyArgs(args.slice(1)),
-        timestamp: new Date().toISOString(),
-      };
-    } else {
-      // If not an Error object, treat all args as a general error message.
-      errorData = {
-        type: 'error',
-        source: 'CONSOLE_ERROR',
-        message: stringifyArgs(args),
-        name: 'ConsoleLoggedError',
-        stack: null,
-        timestamp: new Date().toISOString(),
-      };
-    }
-    window.parent.postMessage(errorData, '*');
-    originalConsoleError.apply(console, args);
-  };
-
-  // Listen for global unhandled synchronous errors.
-  window.addEventListener('error', function(event) {
-    const errorDetails = event.error ? getErrorObject(event.error) : {
-      message: event.message,
-      name: 'GlobalError',
-      stack: null,
-      filename: event.filename,
-      lineno: event.lineno,
-      colno: event.colno,
-    };
-
-    window.parent.postMessage({
-      type: 'error',
-      source: 'global',
-      ...errorDetails,
-      message: errorDetails.message || event.message,
-      timestamp: new Date().toISOString(),
-    }, '*');
-  });
-
-  // Listen for unhandled promise rejections (asynchronous errors).
-  window.addEventListener('unhandledrejection', function(event) {
-    const errorDetails = getErrorObject(event.reason);
-
-    window.parent.postMessage({
-      type: 'error',
-      source: 'unhandledrejection',
-      ...errorDetails,
-      message: errorDetails.message || 'Unhandled Promise Rejection',
-      timestamp: new Date().toISOString(),
-    }, '*');
-  });
-
-})();</script>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SeAH Besteel 위험성평가 업무표준 인포그래픽</title>
+    <title>SeAH IT 구매자산관리 사용자 안내 (OA 기기 중심)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin="anonymous"></script>
-    <!-- 
-        Infographic Plan Summary:
-        The infographic visualizes SeAH Besteel's Risk Assessment Work Standard.
-        It follows the structure of the provided training material (seah_besteel_risk_assessment_slides_v1).
-        Sections cover:
-        1.  Cover/Intro
-        2.  Purpose & Definition of Risk Assessment
-        3.  Overview of SeAH's Process (Doc Info, Purpose, Scope)
-        4.  Process Flow (Input-Process-Output) - HTML/CSS Diagram
-        5.  Process Interconnections - HTML/CSS Diagram
-        6.  Step 1: Planning (Timing, Assessors, Scope, Info Gathering) - Lists
-        7.  Step 2: Hazard Identification (Definition, Methods, Examples) - Lists
-        8.  Step 3: Risk Estimation & Decision (Matrices, Criteria) - HTML Tables, Chart.js Bar Chart for Risk Level Distribution
-        9.  Step 4: Risk Reduction Measures (Hierarchy) - HTML/CSS Diagram or List
-        10. Step 5: Recording & Sharing (Communication, Monitoring, Records) - Lists
-        11. Key Terminology - Lists
-        12. Responsibilities & Authorities - Lists
-        13. Record Keeping (Types, Retention) - HTML Table
-        14. Conclusion
-
-        Chosen Color Palette: "SeAH Safety Blue & Green Palette"
-        - Dark Blue (Primary Headers, Accents): #0A2B4E
-        - Medium Blue (Secondary Headers, Chart Elements): #357ABD
-        - Green (Positive/Safe Accents, Chart Elements): #28A745
-        - Orange (Warning/Highlight Accents, Chart Elements): #FD7E14
-        - Red (High Risk Accents, Chart Elements): #DC3545
-        - Light Gray (Backgrounds): #F8F9FA
-        - Medium Gray (Borders, Subtle Text): #6C757D
-        - Dark Gray/Black (Main Text): #212529
-        - White (Card Backgrounds, Text on Dark): #FFFFFF
-
-        Visualization Choices Summary (Confirming NO SVG, NO MERMAID JS):
-        - Process Flow (Slide 4): Goal: Organize. Chosen: HTML/CSS Diagram. Justification: Clearly shows process stages. Method: Structured HTML with Tailwind CSS. NO SVG/MERMAID.
-        - Process Interconnections (Slide 5): Goal: Organize/Relationships. Chosen: HTML/CSS Diagram. Justification: Shows connections. Method: Structured HTML with Tailwind CSS. NO SVG/MERMAID.
-        - Risk Matrix (Slide 8): Goal: Organize/Compare. Chosen: Styled HTML Table. Justification: Directly represents source matrix. Method: HTML <table> with Tailwind CSS. NO SVG/MERMAID.
-        - Risk Level Distribution (Slide 8): Goal: Compare/Inform. Chosen: Bar Chart. Justification: Compares counts across risk levels. Library: Chart.js (Canvas). NO SVG/MERMAID.
-        - Hierarchy of Controls (Slide 9): Goal: Organize. Chosen: HTML/CSS Pyramid or Ordered List. Justification: Shows hierarchy. Method: Structured HTML with Tailwind CSS. NO SVG/MERMAID.
-        - Tables for Likelihood, Severity, Acceptance Criteria, Records: Goal: Organize/Inform. Chosen: HTML Tables. Justification: Clear data presentation. Method: HTML <table> with Tailwind CSS. NO SVG/MERMAID.
-        - Lists for other textual information: Goal: Inform/Organize. Chosen: HTML Lists. Justification: Structured text. Method: HTML <ul>/<ol>/<dl> with Tailwind CSS. NO SVG/MERMAID.
-        - Icons: Unicode characters. NO SVG.
-
-        Confirmation: NEITHER Mermaid JS NOR SVG were used anywhere in this output. All diagrams are HTML/CSS based. All charts are Chart.js (Canvas).
-    -->
     <style>
+        /* Tailwind CSS와 함께 사용할 사용자 정의 스타일 */
         body {
-            font-family: 'Inter', sans-serif; /* Assuming Inter is a fallback, system fonts will likely be used */
-            background-color: #F8F9FA; /* Light Gray Background */
+            font-family: 'Inter', 'Malgun Gothic', '맑은 고딕', sans-serif;
         }
-        .brand-dark-blue { color: #0A2B4E; }
-        .brand-medium-blue { color: #357ABD; }
-        .brand-green { color: #28A745; }
-        .brand-orange { color: #FD7E14; }
-        .brand-red { color: #DC3545; }
-        .bg-brand-dark-blue { background-color: #0A2B4E; }
-        .bg-brand-medium-blue { background-color: #357ABD; }
-        .bg-brand-light-gray { background-color: #F8F9FA; }
-        .text-brand-dark { color: #212529; }
+        /* SeAH 색상 변수 (필요시 Tailwind config에 추가 가능) */
+        :root {
+            --seah-orange: #E67E22;
+            --seah-darkblue: #2C3E50;
+            --seah-header-bg: #333A40;
+        }
+        .seah-orange-text { color: var(--seah-orange); }
+        .seah-orange-bg { background-color: var(--seah-orange); }
+        .seah-darkblue-text { color: var(--seah-darkblue); }
+        .seah-header-bg { background-color: var(--seah-header-bg); }
 
-        .chart-container {
-            position: relative;
-            width: 100%;
-            max-width: 600px; /* Example max-width */
-            margin-left: auto;
-            margin-right: auto;
-            height: 300px; /* Base height */
-            max-height: 400px; /* Max height */
-        }
-        @media (min-width: 768px) { /* md breakpoint */
-            .chart-container {
-                height: 350px;
-            }
-        }
-        .section-card {
-            background-color: #FFFFFF;
-            border-radius: 0.5rem; /* rounded-lg */
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-md */
-            padding: 1.5rem; /* p-6 */
-            margin-bottom: 1.5rem; /* mb-6 */
-        }
-        .section-title {
-            font-size: 1.875rem; /* text-3xl */
-            font-weight: 700; /* font-bold */
-            color: #0A2B4E; /* brand-dark-blue */
-            margin-bottom: 1rem; /* mb-4 */
-            padding-bottom: 0.5rem; /* pb-2 */
-            border-bottom: 2px solid #357ABD; /* brand-medium-blue */
-        }
-        .sub-section-title {
-            font-size: 1.25rem; /* text-xl */
-            font-weight: 600; /* font-semibold */
-            color: #357ABD; /* brand-medium-blue */
-            margin-top: 1rem; /* mt-4 */
-            margin-bottom: 0.5rem; /* mb-2 */
-        }
-        .tooltip-multiline-title {
-            white-space: pre-wrap;
-        }
-        /* HTML/CSS Flowchart Styles */
-        .flowchart-container {
+        .process-step {
             display: flex;
-            flex-direction: column;
             align-items: center;
-            gap: 1rem;
-        }
-        .flowchart-box {
-            border: 2px solid #357ABD; /* brand-medium-blue */
-            padding: 0.75rem 1.5rem; /* py-3 px-6 */
+            padding: 0.75rem; /* p-3 */
+            border: 1px solid #e5e7eb; /* border-gray-200 */
             border-radius: 0.375rem; /* rounded-md */
-            background-color: #E0E7FF; /* A light blue */
-            color: #0A2B4E; /* brand-dark-blue */
-            text-align: center;
-            min-width: 200px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 0.75rem; /* mb-3 */
+            background-color: #f9fafb; /* bg-gray-50 */
         }
-        .flowchart-arrow {
-            font-size: 1.5rem; /* text-2xl */
-            color: #357ABD; /* brand-medium-blue */
-            transform: rotate(90deg); /* For vertical flow */
-        }
-        /* HTML/CSS Pyramid Diagram */
-        .pyramid-container {
+        .process-step-number {
             display: flex;
-            flex-direction: column-reverse; /* Base at bottom */
             align-items: center;
-            gap: 0.25rem; /* Adjust as needed */
+            justify-content: center;
+            width: 2rem; /* w-8 */
+            height: 2rem; /* h-8 */
+            border-radius: 9999px; /* rounded-full */
+            background-color: var(--seah-orange);
+            color: white;
+            font-weight: bold;
+            margin-right: 0.75rem; /* mr-3 */
+            flex-shrink: 0;
         }
-        .pyramid-level {
-            padding: 0.5rem 1rem;
-            border: 1px solid #357ABD;
-            background-color: #E0E7FF;
-            color: #0A2B4E;
+        .process-arrow {
             text-align: center;
-            border-radius: 0.25rem;
+            margin: 0.5rem 0; /* my-2 */
+            color: var(--seah-orange);
         }
-        #downloadButton {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1000;
+        .faq-item dt {
+            font-weight: 600; /* font-semibold */
+            margin-top: 1rem; /* mt-4 */
+            display: flex;
+            align-items: center;
+        }
+        .faq-item dd {
+            margin-left: 1.75rem; /* ml-7 (아이콘 너비 + 간격) */
+            padding-left: 0.5rem; /* pl-2 */
+            border-left: 2px solid #e5e7eb; /* border-l-2 border-gray-200 */
+            margin-top: 0.25rem; /* mt-1 */
+            color: #4b5563; /* text-gray-600 */
+        }
+        .icon-inline {
+            width: 1.25em;
+            height: 1.25em;
+            margin-right: 0.3em;
+            vertical-align: -0.25em;
         }
     </style>
-<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.16 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.container{width:100%}@media (min-width: 640px){.container{max-width:640px}}@media (min-width: 768px){.container{max-width:768px}}@media (min-width: 1024px){.container{max-width:1024px}}@media (min-width: 1280px){.container{max-width:1280px}}@media (min-width: 1536px){.container{max-width:1536px}}.mx-auto{margin-left:auto;margin-right:auto}.my-6{margin-top:1.5rem;margin-bottom:1.5rem}.mb-12{margin-bottom:3rem}.mb-2{margin-bottom:0.5rem}.mb-3{margin-bottom:0.75rem}.mb-4{margin-bottom:1rem}.mb-6{margin-bottom:1.5rem}.ml-4{margin-left:1rem}.ml-6{margin-left:1.5rem}.mt-1{margin-top:0.25rem}.mt-2{margin-top:0.5rem}.mt-4{margin-top:1rem}.mt-6{margin-top:1.5rem}.grid{display:grid}.w-full{width:100%}.min-w-full{min-width:100%}.list-inside{list-style-position:inside}.list-decimal{list-style-type:decimal}.list-disc{list-style-type:disc}.list-none{list-style-type:none}.grid-cols-1{grid-template-columns:repeat(1, minmax(0, 1fr))}.gap-4{gap:1rem}.gap-6{gap:1.5rem}.space-y-1 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.25rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.25rem * var(--tw-space-y-reverse))}.space-y-2 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.5rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.5rem * var(--tw-space-y-reverse))}.space-y-3 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.75rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.75rem * var(--tw-space-y-reverse))}.space-y-4 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1rem * var(--tw-space-y-reverse))}.overflow-x-auto{overflow-x:auto}.rounded-lg{border-radius:0.5rem}.rounded-md{border-radius:0.375rem}.border{border-width:1px}.border-l-4{border-left-width:4px}.border-blue-500{--tw-border-opacity:1;border-color:rgb(59 130 246 / var(--tw-border-opacity, 1))}.border-gray-300{--tw-border-opacity:1;border-color:rgb(209 213 219 / var(--tw-border-opacity, 1))}.border-green-500{--tw-border-opacity:1;border-color:rgb(34 197 94 / var(--tw-border-opacity, 1))}.border-red-500{--tw-border-opacity:1;border-color:rgb(239 68 68 / var(--tw-border-opacity, 1))}.border-yellow-500{--tw-border-opacity:1;border-color:rgb(234 179 8 / var(--tw-border-opacity, 1))}.bg-blue-100{--tw-bg-opacity:1;background-color:rgb(219 234 254 / var(--tw-bg-opacity, 1))}.bg-gray-100{--tw-bg-opacity:1;background-color:rgb(243 244 246 / var(--tw-bg-opacity, 1))}.bg-gray-50{--tw-bg-opacity:1;background-color:rgb(249 250 251 / var(--tw-bg-opacity, 1))}.bg-green-100{--tw-bg-opacity:1;background-color:rgb(220 252 231 / var(--tw-bg-opacity, 1))}.bg-green-50{--tw-bg-opacity:1;background-color:rgb(240 253 244 / var(--tw-bg-opacity, 1))}.bg-orange-200{--tw-bg-opacity:1;background-color:rgb(254 215 170 / var(--tw-bg-opacity, 1))}.bg-red-100{--tw-bg-opacity:1;background-color:rgb(254 226 226 / var(--tw-bg-opacity, 1))}.bg-red-200{--tw-bg-opacity:1;background-color:rgb(254 202 202 / var(--tw-bg-opacity, 1))}.bg-yellow-100{--tw-bg-opacity:1;background-color:rgb(254 249 195 / var(--tw-bg-opacity, 1))}.p-2{padding:0.5rem}.p-3{padding:0.75rem}.p-4{padding:1rem}.px-4{padding-left:1rem;padding-right:1rem}.py-12{padding-top:3rem;padding-bottom:3rem}.py-2{padding-top:0.5rem;padding-bottom:0.5rem}.pl-4{padding-left:1rem}.text-left{text-align:left}.text-center{text-align:center}.text-2xl{font-size:1.5rem;line-height:2rem}.text-3xl{font-size:1.875rem;line-height:2.25rem}.text-5xl{font-size:3rem;line-height:1}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.text-xs{font-size:0.75rem;line-height:1rem}.font-bold{font-weight:700}.font-medium{font-weight:500}.font-semibold{font-weight:600}.text-blue-600{--tw-text-opacity:1;color:rgb(37 99 235 / var(--tw-text-opacity, 1))}.text-blue-700{--tw-text-opacity:1;color:rgb(29 78 216 / var(--tw-text-opacity, 1))}.text-gray-500{--tw-text-opacity:1;color:rgb(107 114 128 / var(--tw-text-opacity, 1))}.text-gray-600{--tw-text-opacity:1;color:rgb(75 85 99 / var(--tw-text-opacity, 1))}.text-gray-700{--tw-text-opacity:1;color:rgb(55 65 81 / var(--tw-text-opacity, 1))}.text-green-700{--tw-text-opacity:1;color:rgb(21 128 61 / var(--tw-text-opacity, 1))}.text-red-700{--tw-text-opacity:1;color:rgb(185 28 28 / var(--tw-text-opacity, 1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.text-yellow-700{--tw-text-opacity:1;color:rgb(161 98 7 / var(--tw-text-opacity, 1))}.shadow-md{--tw-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 4px 6px -1px var(--tw-shadow-color), 0 2px 4px -2px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow-xl{--tw-shadow:0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 20px 25px -5px var(--tw-shadow-color), 0 8px 10px -6px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.transition{transition-property:color, background-color, border-color, fill, stroke, opacity, box-shadow, transform, filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.duration-150{transition-duration:150ms}.ease-in-out{transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1)}.hover\:bg-green-700:hover{--tw-bg-opacity:1;background-color:rgb(21 128 61 / var(--tw-bg-opacity, 1))}@media (min-width: 768px){.md\:w-11\/12{width:91.666667%}.md\:w-3\/4{width:75%}.md\:w-5\/6{width:83.333333%}.md\:grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.md\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}.md\:p-8{padding:2rem}}@media (min-width: 1024px){.lg\:w-1\/2{width:50%}.lg\:w-3\/4{width:75%}.lg\:w-7\/12{width:58.333333%}.lg\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}}</style></head>
-<body class="bg-brand-light-gray text-brand-dark">
-    <button id="downloadButton" class="bg-brand-green hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out">
-        HTML 다운로드 💾
-    </button>
-
-    <div class="container mx-auto p-4 md:p-8">
-
-        <header class="text-center py-12 bg-brand-dark-blue text-white rounded-lg shadow-xl mb-12">
-            <h1 class="text-5xl font-bold mb-4">SeAH Besteel</h1>
-            <h2 class="text-3xl font-semibold mb-2">안전환경 위험성평가 업무표준 인포그래픽</h2>
-            <p class="text-xl">우리 모두의 안전을 위한 필수 과정</p>
-            <div class="mt-6 text-sm">
-                <span>작성부서: 안전팀</span> | <span>시행일자: 2025.03.01</span>
-            </div>
+</head>
+<body class="bg-slate-100 text-slate-800">
+    <div class="container max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 bg-white shadow-2xl rounded-lg my-8">
+        <header class="seah-header-bg text-white p-6 sm:p-8 rounded-t-lg text-center mb-8">
+            <!-- <img src="images/seah_logo_white.png" alt="SeAH Logo" class="logo mx-auto mb-4 w-24"> 로고 이미지가 있다면 경로 지정 -->
+            <h1 class="text-3xl sm:text-4xl font-bold">IT 자산, 쉽고 편하게 관리하세요!</h1>
+            <p class="text-lg sm:text-xl mt-2">내 PC/노트북 사용 A to Z 가이드 (신규 입사부터 반납까지, 모든 것을 알려드립니다!)</p>
         </header>
 
-        <section class="section-card" id="purpose-definition">
-            <h2 class="section-title">교육의 목적 및 위험성평가란?</h2>
-            <p class="mb-4 text-lg">오늘 교육을 통해 우리는 무엇을 배울까요?</p>
-            <ul class="list-disc list-inside mb-6 space-y-1 pl-4">
-                <li>위험성평가의 중요성을 이해하고,</li>
-                <li>우리 회사 위험성평가 업무 절차를 숙지하며,</li>
-                <li>각자의 역할과 책임을 알고 적극적으로 참여하여</li>
-                <li>안전한 작업환경을 함께 만들어갑니다!</li>
+        <nav class="mb-10 p-3 bg-slate-50 rounded-md shadow">
+            <ul class="flex flex-wrap justify-center gap-x-4 gap-y-2">
+                <li><a href="#purpose" class="px-3 py-2 rounded-md hover:bg-orange-500 hover:text-white transition-colors text-sm sm:text-base font-medium text-slate-700">안내 목적</a></li>
+                <li><a href="#terms" class="px-3 py-2 rounded-md hover:bg-orange-500 hover:text-white transition-colors text-sm sm:text-base font-medium text-slate-700">주요 용어</a></li>
+                <li><a href="#usage-guide" class="px-3 py-2 rounded-md hover:bg-orange-500 hover:text-white transition-colors text-sm sm:text-base font-medium text-slate-700">PC/노트북 사용</a></li>
+                <li><a href="#troubleshooting" class="px-3 py-2 rounded-md hover:bg-orange-500 hover:text-white transition-colors text-sm sm:text-base font-medium text-slate-700">문제 해결</a></li>
+                <li><a href="#hr-changes" class="px-3 py-2 rounded-md hover:bg-orange-500 hover:text-white transition-colors text-sm sm:text-base font-medium text-slate-700">인사 변동</a></li>
+                <li><a href="#return-guide" class="px-3 py-2 rounded-md hover:bg-orange-500 hover:text-white transition-colors text-sm sm:text-base font-medium text-slate-700">PC/노트북 반납</a></li>
+                <li><a href="#faq" class="px-3 py-2 rounded-md hover:bg-orange-500 hover:text-white transition-colors text-sm sm:text-base font-medium text-slate-700">FAQ</a></li>
+                <li><a href="#contact" class="px-3 py-2 rounded-md hover:bg-orange-500 hover:text-white transition-colors text-sm sm:text-base font-medium text-slate-700">문의처</a></li>
             </ul>
-            <h3 class="sub-section-title">위험성평가(Risk Assessment)란?</h3>
-            <p class="mb-4">
-                우리 일터에 숨어있는 <strong>유해·위험요인</strong>을 미리 찾아내고, 그것이 얼마나 <strong>위험한지(발생 가능성 + 피해 심각성)</strong>를 분석하여, 위험 수준을 결정하고 필요한 <strong>감소대책</strong>을 세워 실행하는 체계적인 과정입니다.
-            </p>
-            <p class="p-4 bg-blue-100 border-l-4 border-blue-500 text-blue-700 rounded-md">
-                <span class="font-bold text-lg">💡 쉽게 말해, "미리 위험을 알고 대비하자!"는 것입니다.</span>
-            </p>
-        </section>
+        </nav>
 
-        <section class="section-card" id="overview">
-            <h2 class="section-title">우리 회사 위험성평가 업무 개요</h2>
-            <div class="grid md:grid-cols-2 gap-6">
-                <div>
-                    <h3 class="sub-section-title">📜 문서 정보</h3>
-                    <ul class="list-none space-y-1">
-                        <li><strong>문서번호:</strong> SB-A-5602</li>
-                        <li><strong>프로세스 구분:</strong> 지원(SP) 프로세스</li>
-                        <li><strong>Level:</strong> MAIN</li>
-                        <li><strong>관리책임자:</strong> 안전팀</li>
-                        <li><strong>시행일자:</strong> 2025.03.01</li>
+        <main>
+            <section id="purpose" class="mb-10 p-6 bg-white rounded-lg shadow-lg ring-1 ring-slate-200">
+                <h2 class="text-2xl font-bold seah-orange-text border-b-2 border-orange-500 pb-2 mb-6 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-3 h-7 w-7"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m12 12-2-2.5 2-2.5"/><path d="m12 17 2-2.5-2-2.5"/></svg>
+                    이 문서는 왜 필요할까요? (안내의 목적)
+                </h2>
+                <p class="mb-3">회사 생활에 필수적인 PC와 노트북! 하지만 언제, 어떻게 받고, 문제가 생기면 어떻게 해야 할지 막막할 때가 있죠?</p>
+                <p class="mb-3">이 안내서는 세아 임직원 여러분이 회사 IT 자산, 특히 <strong>매일 사용하는 사무용 PC와 노트북(OA 기기)</strong>을</p>
+                <ul class="list-disc list-inside mb-4 pl-4 space-y-1">
+                    <li>새로 받을 때 (신규 입사, 보직 변경 등)</li>
+                    <li>사용 중 문제가 발생했을 때 (고장, 성능 저하, 분실 등)</li>
+                    <li>교체하거나 반납해야 할 때</li>
+                </ul>
+                <p class="mb-3">필요한 모든 절차와 정보를 쉽고 명확하게 알려드리기 위해 마련되었습니다.</p>
+                <p class="font-semibold mb-2">이 가이드를 통해 여러분은...</p>
+                <ul class="list-disc list-inside pl-4 space-y-1 text-slate-700">
+                    <li>IT 자산 관련 궁금증을 <strong class="text-orange-600">신속하게 해결</strong>하고,</li>
+                    <li>정확한 절차를 따라 <strong class="text-orange-600">업무 효율을 높이며,</strong></li>
+                    <li>회사의 소중한 자산을 <strong class="text-orange-600">안전하고 올바르게 사용</strong>할 수 있습니다.</li>
+                </ul>
+            </section>
+
+            <section id="terms" class="mb-10 p-6 bg-white rounded-lg shadow-lg ring-1 ring-slate-200">
+                <h2 class="text-2xl font-bold seah-orange-text border-b-2 border-orange-500 pb-2 mb-6 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-3 h-7 w-7"><book-open class="lucide lucide-book-open"></book-open><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+                    이것만은 알고 시작해요! (주요 용어)
+                </h2>
+                <ul class="space-y-4">
+                    <li>
+                        <strong class="flex items-center text-slate-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-inline text-orange-500"><rect width="14" height="8" x="5" y="2" rx="2" ry="2"></rect><rect width="20" height="8" x="2" y="14" rx="2" ry="2"></rect><path d="M6 18h2"></path><path d="M12 18h6"></path></svg>
+                            IT 자산 (Information Technology Asset):
+                        </strong>
+                        <p class="ml-6 text-slate-600">회사 업무를 위해 사용하는 모든 정보 기술 관련 자산을 의미합니다.</p>
+                        <ul class="list-disc list-inside mt-2 ml-10 space-y-1 text-slate-600">
+                            <li><strong>사무용 O/A (Office Automation) 기기:</strong> 여러분의 책상 위에서 매일 함께하는 <strong>데스크톱 PC, 노트북, 모니터, 프린터, 복합기</strong> 등을 지칭합니다. 이 가이드에서 집중적으로 다룰 내용입니다!</li>
+                            <li>기타 IT 자산: 서버, 네트워크 장비, 각종 업무용 소프트웨어 라이선스, 보안 장비 등 (주로 IT 부서에서 관리합니다.)</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong class="flex items-center text-slate-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-inline text-orange-500"><path d="M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20Zm-2-9a2 2 0 1 0 4 0 2 2 0 0 0-4 0Zm0 4a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z"/><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+                            IT서비스요청 (SR, Service Request 또는 ITSM):
+                        </strong>
+                        <p class="ml-6 text-slate-600">IT 관련 지원이나 서비스가 필요할 때 (예: PC 고장 신고, 프로그램 설치 요청, 계정 문의 등) IT 부서에 공식적으로 요청을 등록하고 처리 과정을 확인할 수 있는 시스템입니다. <strong>"IT 헬프데스크"</strong>와 유사한 개념으로 생각하시면 됩니다. (내부 시스템: ITSM 시스템)</p>
+                    </li>
+                    <li>
+                        <strong class="flex items-center text-slate-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-inline text-orange-500"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                            ERP (Enterprise Resource Planning):
+                        </strong>
+                        <p class="ml-6 text-slate-600">전사적자원관리 시스템으로, 회사의 인사, 회계, 구매 등 핵심 업무 프로세스를 통합적으로 관리합니다. 일부 IT 자산 관련 신청(예: PC 교체 신청) 및 정보 확인도 ERP 시스템을 통해 이루어질 수 있습니다.</p>
+                    </li>
+                </ul>
+            </section>
+
+            <section id="usage-guide" class="mb-10 p-6 bg-white rounded-lg shadow-lg ring-1 ring-slate-200">
+                <h2 class="text-2xl font-bold seah-orange-text border-b-2 border-orange-500 pb-2 mb-6 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-3 h-7 w-7"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                    내 PC/노트북, 이렇게 받아서 사용해요!
+                </h2>
+                
+                <h3 class="text-xl font-semibold text-slate-700 mt-6 mb-4 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-inline text-orange-500"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    4.1. 신규 입사/발령 시 PC/노트북 지급받기
+                </h3>
+                <h4 class="text-lg font-medium text-slate-600 mb-3">두근두근 첫 출근! 업무 준비의 시작, PC 지급!</h4>
+                <div class="space-y-3">
+                    <p><strong>지급 기준 및 대상:</strong></p>
+                    <ul class="list-disc list-inside ml-4 space-y-1 text-slate-600">
+                        <li><strong>기본 원칙:</strong> 1인 1대의 업무용 PC 또는 노트북 지급 (보안 및 업무 효율성 고려)</li>
+                        <li><strong>지급 사양:</strong> 직무 특성, 직급 등을 고려하여 회사 표준 사양의 기기가 지급됩니다. (특별한 사양이 필요한 경우, 부서장 승인 하에 별도 검토)</li>
+                    </ul>
+                    <p><strong>지급 신청 절차:</strong></p>
+                    <div class="ml-4 space-y-2">
+                        <div class="process-step">
+                            <div class="process-step-number">1</div>
+                            <div><strong>신규 입사자:</strong> 별도의 신청 없이, 입사 절차에 따라 <strong>디지털 전략팀</strong>에서 입사일 전에 미리 준비하여 지급합니다. (인사팀을 통해 안내)</div>
+                        </div>
+                        <div class="process-step">
+                            <div class="process-step-number">2</div>
+                            <div><strong>내부 발령/보직 변경:</strong> 기존 사용 기기를 계속 사용하거나, 새로운 직무에 필요한 경우 디지털 전략팀에서 적절한 기기로 교체 또는 추가 지급합니다. (부서 이동 시 부서장과 협의)</div>
+                        </div>
+                    </div>
+                    <p><strong>수령 시 확인 사항 (꼼꼼히 체크하세요!):</strong></p>
+                    <ul class="list-disc list-inside ml-4 space-y-1 text-slate-600">
+                        <li>지급받은 PC/노트북의 <strong>모델명, 사양, 수량</strong>이 정확한지 확인합니다.</li>
+                        <li>모니터, 키보드, 마우스 등 <strong>주변기기</strong>가 함께 지급되었는지 확인합니다.</li>
+                        <li><strong>자산 관리 스티커</strong>가 부착되어 있는지 확인합니다.</li>
+                        <li>수령 확인서(또는 전산기기관리대장)에 <strong>정확한 정보 기재 후 서명</strong>합니다.</li>
+                        <li>초기 비밀번호 설정 및 기본 업무용 프로그램 설치 상태를 확인합니다. (문제 시 즉시 디지털 전략팀 문의)</li>
                     </ul>
                 </div>
-                <div>
-                    <h3 class="sub-section-title">🎯 위험성평가, 왜 필요할까요? (목적)</h3>
-                    <p class="mb-3">우리 회사의 모든 활동, 제품, 공정 및 서비스에서 발생할 수 있는 <strong>위험요소를 사전에 파악하고 평가</strong>합니다.</p>
-                    <p>이를 통해 <strong>사고와 재해를 예방</strong>하여 안전하고 건강한 일터를 만드는 것이 최종 목표입니다.</p>
-                </div>
-            </div>
-            <h3 class="sub-section-title mt-6">🌐 어디까지 적용되나요? (적용범위)</h3>
-            <p class="mb-3">(주)세아베스틸 군산공장의 모든 제품과 관련된 조직의 <strong>모든 활동에 적용</strong>됩니다.</p>
-            <p>위험성의 <strong>모든 측면을 평가하는 전 과정</strong>이 해당됩니다.</p>
-            <div class="mt-4 p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 rounded-md">
-                <span class="font-bold">✨ 팁:</span> "나와는 상관없는 일이라고 생각하지 마세요! 우리 모두의 안전과 직결됩니다."
-            </div>
-        </section>
 
-        <section class="section-card" id="process-flow">
-            <h2 class="section-title">위험성평가 프로세스 한눈에 보기</h2>
-            <p class="text-center mb-6 text-gray-700">위험성평가는 다음과 같은 입력, 처리, 출력의 단계를 거칩니다.</p>
-            <div class="flowchart-container">
-                <div class="flowchart-box">
-                    <h3 class="font-semibold text-lg mb-2">INPUT (입력)</h3>
-                    <ul class="text-sm text-left list-disc list-inside">
-                        <li>선행 프로세스/공급자: 위험성평가 계획, 외주업체 관리 등</li>
-                        <li>입력 정보/입력물: 공정정보, 유해위험요인, 가능성/중대성</li>
-                        <li>수단 (HW/SW): SHE 시스템, Excel 등</li>
-                        <li>관련 규정/지침: 안전보건관리규정 등</li>
+                <h3 class="text-xl font-semibold text-slate-700 mt-8 mb-4 flex items-center">
+                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-inline text-orange-500"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    4.2. 내 자산 정보 확인하기
+                </h3>
+                <h4 class="text-lg font-medium text-slate-600 mb-3">"내가 쓰는 PC 정보, 어디서 보나요?"</h4>
+                <p class="text-slate-600">회사 내부 시스템(예: ERP 시스템 또는 자산관리 시스템)의 '전산기기관리대장' 메뉴에서 현재 사용 중인 PC/노트북의 모델명, 자산번호, 최초 지급일 등의 정보를 확인할 수 있습니다.</p>
+
+                <h3 class="text-xl font-semibold text-slate-700 mt-8 mb-4 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-inline text-orange-500"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M14 10h7v7"/><path d="M3 21 10 14"/></svg>
+                    4.3. 정기 IT 자산 실사, 적극 협조해주세요!
+                </h3>
+                <h4 class="text-lg font-medium text-slate-600 mb-3">소중한 회사 자산, 함께 지켜요!</h4>
+                <ul class="space-y-2 text-slate-600">
+                    <li><strong>실사 목적:</strong> 회사의 모든 IT 자산이 정확하게 관리되고 있는지, 분실되거나 도난당하지 않았는지, 불필요하게 방치되고 있지는 않은지 등을 주기적으로 점검하여 자산의 효율적 운영 및 보안을 강화하기 위함입니다.</li>
+                    <li><strong>실사 주기:</strong> 통상 <strong>연 1회</strong> 정기적으로 실시되며, 필요에 따라 수시 실사가 진행될 수 있습니다. (디지털 전략팀 공지 참고)</li>
+                    <li><strong>협조 방법:</strong>
+                        <ol class="list-decimal list-inside ml-4 mt-2 space-y-1">
+                            <li>디지털 전략팀에서 자산 실사 안내 공지 및 협조 요청 메일 발송.</li>
+                            <li>사용 중인 PC/노트북에 부착된 <strong>자산 관리 스티커 정보</strong> 확인.</li>
+                            <li>안내된 방법(온라인 시스템 입력, 담당자 확인 등)에 따라 실사 내용 회신.</li>
+                            <li>현물 확인이 필요한 경우, 담당자 방문 시 협조.</li>
+                        </ol>
+                    </li>
+                    <li><strong>미협조 시:</strong> 자산 현황 파악 지연으로 전체 자산 관리의 정확성이 저하될 수 있으며, 반복적인 미협조 시 불이익이 있을 수 있습니다. (예: 신규 자산 신청 지연 등 – 회사 규정에 따름)</li>
+                </ul>
+            </section>
+
+            <section id="troubleshooting" class="mb-10 p-6 bg-white rounded-lg shadow-lg ring-1 ring-slate-200">
+                <h2 class="text-2xl font-bold seah-orange-text border-b-2 border-orange-500 pb-2 mb-6 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-3 h-7 w-7"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    PC/노트북 사용 중 문제 발생! 이렇게 해결해요!
+                </h2>
+
+                <h3 class="text-xl font-semibold text-slate-700 mt-6 mb-4 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-inline text-orange-500"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 0 2.15l-.09.12a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1 0-2.15l.09-.12a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    5.1. 상황 1: PC/노트북이 고장 났어요! (수리 요청)
+                </h3>
+                <h4 class="text-lg font-medium text-slate-600 mb-3">"갑자기 PC가 안 켜져요!", "화면이 이상해요!" 당황하지 마세요!</h4>
+                <div class="space-y-3">
+                    <div class="process-step">
+                        <div class="process-step-number">1</div>
+                        <div><strong>IT서비스요청(SR) 등록:</strong> 회사 <strong>ITSM 시스템</strong> (<a href="https://its.seah.co.kr/" target="_blank" class="text-blue-600 hover:underline">https://its.seah.co.kr/</a>)에 접속하여 자산번호, 고장 증상(상세히), 에러 메시지(캡처 첨부 권장), 연락처를 입력합니다.</div>
+                    </div>
+                    <div class="process-arrow">▼</div>
+                    <div class="process-step">
+                        <div class="process-step-number">2</div>
+                        <div><strong>임시 대체 PC/노트북 받기 (필요시):</strong> 수리에 1일 이상 소요 예상 시, 디지털 전략팀에 대체 기기 요청 가능 (재고 상황에 따라 지급).</div>
+                    </div>
+                    <div class="process-arrow">▼</div>
+                    <div class="process-step">
+                        <div class="process-step-number">3</div>
+                        <div><strong>수리 진행:</strong> 디지털 전략팀 또는 IT서비스위탁사에서 원격/방문 진단 및 수리 진행. 자체 수리 불가 시 제조사 입고 (예상 기간 별도 안내).</div>
+                    </div>
+                    <div class="process-arrow">▼</div>
+                    <div class="process-step">
+                        <div class="process-step-number">4</div>
+                        <div><strong>수리 완료 및 확인:</strong> 수리 완료 연락 후 정상 작동 테스트. 대체 기기 사용 시 즉시 반납 (데이터 사전 백업). ITSM 시스템에서 처리 완료 확인 및 만족도 평가.</div>
+                    </div>
+                </div>
+
+                <h3 class="text-xl font-semibold text-slate-700 mt-8 mb-4 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-inline text-orange-500"><path d="M10.62 2.54c.98-.97 2.43-.97 3.4 0l3.18 3.18c.98.98.98 2.56 0 3.54l-3.45 3.45c-.29.29-.5.67-.63 1.07l-.41 1.22a1 1 0 0 0 1.22 1.22l1.22-.41c.4-.13.78-.34 1.07-.63l3.45-3.45c.98-.98.98-2.56 0-3.54l-3.18-3.18c-.98-.98-2.56-.98-3.54 0Z"/><path d="M12 12h.01"/><path d="M3 21h18"/></svg>
+                    5.2. 상황 2: PC/노트북이 너무 낡았거나 느려요! (교체 요청)
+                </h3>
+                <h4 class="text-lg font-medium text-slate-600 mb-3">"업무 속도가 안 나요!" 생산성 향상을 위한 PC 교체!</h4>
+                <div class="space-y-3">
+                    <p><strong>교체 검토 조건:</strong></p>
+                    <ul class="list-disc list-inside ml-4 space-y-1 text-slate-600">
+                        <li><strong>내용연수(사용 연한) 경과:</strong> 데스크톱 PC (통상 <strong>5년</strong>), 노트북 (통상 <strong>3~4년</strong>). *절대적 기준 아님*</li>
+                        <li><strong>수리 불가 또는 과다한 수리 비용 발생.</strong></li>
+                        <li><strong>현저한 성능 저하로 업무 수행에 심각한 지장 초래 시</strong> (디지털 전략팀 기술적 판단 필요).</li>
+                        <li><strong>업무 변경으로 인한 고사양 기기 필요성</strong> (부서장 승인 및 디지털 전략팀 검토).</li>
+                    </ul>
+                     <p><strong>교체 요청 절차 (ERP 시스템 또는 지정된 시스템 활용):</strong></p>
+                    <div class="ml-4 space-y-2">
+                        <div class="process-step">
+                            <div class="process-step-number">1</div>
+                            <div><strong>'IT 자산 교체 신청서' 작성:</strong> 교체 대상 자산 정보, 교체 사유 구체적 명시.</div>
+                        </div>
+                        <div class="process-arrow">▼</div>
+                        <div class="process-step">
+                            <div class="process-step-number">2</div>
+                            <div><strong>부서장 승인 득하기.</strong></div>
+                        </div>
+                        <div class="process-arrow">▼</div>
+                        <div class="process-step">
+                            <div class="process-step-number">3</div>
+                            <div><strong>디지털 전략팀 검토 및 승인:</strong> 교체 타당성, 예산 등 종합 검토.</div>
+                        </div>
+                    </div>
+                    <p><strong>새 PC/노트북 지급 및 기존 PC/노트북 반납:</strong></p>
+                    <ul class="list-disc list-inside ml-4 space-y-1 text-slate-600">
+                        <li>교체 승인 후 새 기기 준비 및 연락.</li>
+                        <li>새 PC/노트북 수령 시 기존 PC/노트북 <strong>반드시 반납.</strong></li>
+                        <li><strong>데이터 백업:</strong> 기존 PC/노트북 중요 데이터는 <strong>사전 개인적 백업 필수.</strong></li>
+                        <li><strong>S/W 라이선스:</strong> 새 PC/노트북에 재설치 또는 이전 지원.</li>
                     </ul>
                 </div>
-                <div class="flowchart-arrow">⬇️</div>
-                <div class="flowchart-box">
-                    <h3 class="font-semibold text-lg mb-2">PROCESS (처리)</h3>
-                    <p class="font-bold text-blue-600 mb-2">핵심 프로세스: 위험성 평가</p>
-                    <ol class="text-sm text-left list-decimal list-inside">
-                        <li>[1단계] 계획 수립</li>
-                        <li>[2단계] 위험성 파악</li>
-                        <li>[3단계] 위험성 추정 및 결정</li>
-                        <li>[4단계] 위험성 감소대책 수립 및 실행</li>
-                        <li>[5단계] 기록 및 공유</li>
-                    </ol>
-                    <p class="mt-2 text-xs">교육지식/SKILL: KRAS기법, 산업안전보건법 등</p>
+
+                <h3 class="text-xl font-semibold text-slate-700 mt-8 mb-4 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-inline text-orange-500"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    5.3. 상황 3: PC/노트북을 잃어버렸어요! (분실 신고)
+                </h3>
+                <div class="p-4 rounded-md border-l-4 border-yellow-500 bg-yellow-50 text-yellow-700 flex items-start space-x-3 mb-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6 flex-shrink-0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    <div><strong class="font-semibold">"어디 갔지? 내 노트북!" 분실은 정보 유출의 시작! 즉시 신고!</strong></div>
                 </div>
-                <div class="flowchart-arrow">⬇️</div>
-                <div class="flowchart-box">
-                    <h3 class="font-semibold text-lg mb-2">OUTPUT (출력)</h3>
-                    <ul class="text-sm text-left list-disc list-inside">
-                        <li>출력정보/출력물: 위험성평가 결과, 감소대책 계획서</li>
-                        <li>후행 프로세스/고객: 안전보건 부적합 처리, 비상시 대비 대응</li>
-                        <li>프로세스 모니터링: 재해율, 감소대책 실행률 등</li>
-                    </ul>
+                <div class="space-y-3">
+                    <div class="process-step">
+                        <div class="process-step-number">1</div>
+                        <div><strong>즉시 보고 및 신고:</strong> 인지 즉시 <strong>소속 부서장(팀장)</strong>에게 구두 또는 유선 보고. 동시에 <strong>디지털 전략팀</strong> 및 <strong>정보보호 담당 부서</strong>에 반드시 유선으로 신고.</div>
+                    </div>
+                    <div class="process-arrow">▼</div>
+                    <div class="process-step">
+                        <div class="process-step-number">2</div>
+                        <div><strong>분실 경위서 작성 및 제출:</strong> 분실 인지 시점, 추정 분실 장소/시간, 당시 상황, 분실 기기 정보, 기기 내 주요 정보 등 상세 기술 후 부서장 결재 받아 제출.</div>
+                    </div>
+                    <div class="process-arrow">▼</div>
+                    <div class="process-step">
+                        <div class="process-step-number">3</div>
+                        <div><strong>후속 조치 및 새 PC/노트북 신청:</strong> 정보보호 담당 부서 안내에 따라 추가 조치 협조. 분실 자산은 회사 규정에 따라 처리 (상황에 따라 개인 변상 책임 발생 가능). 업무 필요시 새 기기 지급 신청 가능.</div>
+                    </div>
                 </div>
-            </div>
-            <p class="mt-6 text-center p-3 bg-green-100 border-l-4 border-green-500 text-green-700 rounded-md">
-                "위험성평가는 단순히 문서를 만드는 작업이 아니라, 실제 행동으로 이어져야 합니다!"
-            </p>
-        </section>
-
-        <section class="section-card" id="process-interconnections">
-            <h2 class="section-title">위험성평가 프로세스 연관도</h2>
-            <p class="mb-6 text-gray-700">위험성평가는 단독으로 존재하는 것이 아니라, 회사의 다양한 안전보건 활동과 유기적으로 연결되어 운영됩니다. 다음은 주요 연관 프로세스 예시입니다.</p>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div class="p-4 border border-gray-300 rounded-lg bg-gray-50"><strong>안전보건 목표 및 계획 수립</strong> ↔️ 위험성평가</div>
-                <div class="p-4 border border-gray-300 rounded-lg bg-gray-50"><strong>설비 관리</strong> ↔️ 위험성평가</div>
-                <div class="p-4 border border-gray-300 rounded-lg bg-gray-50"><strong>변경 관리</strong> ↔️ 위험성평가</div>
-                <div class="p-4 border border-gray-300 rounded-lg bg-gray-50"><strong>구매 관리 (신규 물질/설비)</strong> ↔️ 위험성평가</div>
-                <div class="p-4 border border-gray-300 rounded-lg bg-gray-50"><strong>작업허가</strong> (결과 활용) ↔️ 위험성평가</div>
-                <div class="p-4 border border-gray-300 rounded-lg bg-gray-50"><strong>교육훈련</strong> (결과 공유) ↔️ 위험성평가</div>
-                <div class="p-4 border border-gray-300 rounded-lg bg-gray-50"><strong>비상대응</strong> (결과 반영) ↔️ 위험성평가</div>
-                <div class="p-4 border border-gray-300 rounded-lg bg-gray-50"><strong>사고조사 및 재발방지</strong> ➡️ 위험성평가 (재검토)</div>
-            </div>
-        </section>
-
-        <section class="section-card" id="planning">
-            <h2 class="section-title">[1단계] 계획 수립: 꼼꼼한 준비가 안전의 시작!</h2>
-            <div class="grid md:grid-cols-2 gap-6">
-                <div>
-                    <h3 class="sub-section-title">🗓️ 1. 시기 선정: 언제 평가해야 할까요?</h3>
-                    <p><strong>정기평가:</strong> 매년 1회, 전체 공정 실시</p>
-                    <p><strong>수시평가 (즉시):</strong></p>
-                    <ul class="list-disc list-inside pl-4 text-sm">
-                        <li>건설물 설치·이전·변경·해체 시</li>
-                        <li>새로운 기계·기구·설비·원재료 도입/변경 시</li>
-                        <li>정비 또는 보수 시</li>
-                        <li>작업방법/절차 신규 도입/변경 시</li>
-                        <li>중대산업사고/산업재해 발생 시 (아차사고 포함!)</li>
-                        <li>기타 필요시 (예: PSM 설비 관련)</li>
-                    </ul>
-                    <p class="text-xs mt-1"><em>누가? 부서장 주관, 안전담당자 협조</em></p>
+                <div class="p-4 mt-4 rounded-md border-l-4 border-yellow-500 bg-yellow-50 text-yellow-700 flex items-start space-x-3">
+                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6 flex-shrink-0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    <div>회사 PC/노트북 분실은 심각한 정보 유출 사고로 이어질 수 있습니다. 외부 반출 시 각별히 주의하고, 분실 시 즉시 신고하는 것이 가장 중요합니다!</div>
                 </div>
-                <div>
-                    <h3 class="sub-section-title">👥 2. 평가자 선정: 누가 참여해야 할까요?</h3>
-                    <p><strong>필수 참여:</strong></p>
-                    <ul class="list-disc list-inside pl-4 text-sm">
-                        <li>부서 관리감독자 (부서장, 팀장, 기장 등)</li>
-                        <li>부서 안전담당자</li>
-                        <li>부서 모든 근로자 (사무직, 기능직 모두!)</li>
-                    </ul>
-                    <p><strong>교육은 필수!</strong> 위험성평가 지식 및 방법 교육</p>
-                    <p class="text-xs mt-1"><em>누가? 부서장, 안전담당자가 평가자 선정</em></p>
+            </section>
+
+            <section id="hr-changes" class="mb-10 p-6 bg-white rounded-lg shadow-lg ring-1 ring-slate-200">
+                <h2 class="text-2xl font-bold seah-orange-text border-b-2 border-orange-500 pb-2 mb-6 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-3 h-7 w-7"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m21.2 15.2.9-2.4-2.4.9-1.6-2.1-2.1 1.6-.9-2.4-2.4.9.9 2.4-1.6 2.1 2.1 1.6.9 2.4Z"/></svg>
+                    인사 변동 시 PC/노트북 관리, 잊지 마세요!
+                </h2>
+                <h4 class="text-lg font-medium text-slate-600 mb-3">자리가 바뀌어도 자산 관리는 철저히!</h4>
+
+                <h3 class="text-xl font-semibold text-slate-700 mt-6 mb-4 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-inline text-orange-500"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    6.1. 퇴사 / 장기 휴직 / 그룹사 전출 시: 사용하던 PC/노트북 반납하기
+                </h3>
+                <ul class="list-disc list-inside ml-4 space-y-2 text-slate-600">
+                    <li><strong>반납 대상:</strong> 사용하던 회사 지급 PC, 노트북 및 관련 주변기기 일체.</li>
+                    <li><strong>반납 시점:</strong> 퇴사자 (퇴사일 전까지), 장기 휴직자 (휴직 시작일 전까지), 그룹사 전출자 (전출일 전까지).</li>
+                    <li><strong>반납 절차:</strong>
+                        <ol class="list-decimal list-inside ml-4 mt-2 space-y-1">
+                            <li><strong>데이터 백업 및 개인 정보 삭제:</strong> 반납 전 개인 파일 백업 및 모든 개인 정보/불필요 데이터 완전 삭제.</li>
+                            <li><strong>디지털 전략팀에 반납:</strong> 지정 장소/담당자에게 실물 자산 반납.</li>
+                            <li><strong>반납 확인서 작성/서명.</strong></li>
+                            <li><strong>보안 서약 (필요시):</strong> 정보보호 담당 부서 안내.</li>
+                        </ol>
+                    </li>
+                </ul>
+
+                <h3 class="text-xl font-semibold text-slate-700 mt-8 mb-4 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-inline text-orange-500"><path d="M12 20v-6M6 20v-4M18 20v-8M12 4h.01M6 4h.01M18 4h.01M4 20h16"/><path d="M4 12h8M12 12h8"/></svg>
+                    6.2. 부서 이동 / 직책 변경 시: 자산 정보 업데이트는 필수!
+                </h3>
+                <ul class="list-disc list-inside ml-4 space-y-2 text-slate-600">
+                    <li><strong>기존 PC/노트북 계속 사용 여부:</strong> 일반적으로 계속 사용. 단, 새 업무 특성상 다른 사양 필요시 부서장과 협의 후 디지털 전략팀에 교체/추가 지급 요청.</li>
+                    <li><strong>자산 정보 변경 요청:</strong> 사용자 정보(소속 부서, 직책 등) 변경 시, <strong>ITSM 시스템 또는 디지털 전략팀에 연락하여 전산기기관리대장 사용자 정보 업데이트 요청 필수.</strong></li>
+                </ul>
+            </section>
+
+            <section id="return-guide" class="mb-10 p-6 bg-white rounded-lg shadow-lg ring-1 ring-slate-200">
+                <h2 class="text-2xl font-bold seah-orange-text border-b-2 border-orange-500 pb-2 mb-6 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-3 h-7 w-7"><path d="M3 3v18h18"/><path d="m13 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/></svg>
+                    PC/노트북 반납, 이렇게 해요!
+                </h2>
+                <h4 class="text-lg font-medium text-slate-600 mb-3">마무리까지 깔끔하게! 올바른 반납 절차.</h4>
+                 <ul class="list-disc list-inside ml-4 space-y-2 text-slate-600">
+                    <li><strong>반납 사유:</strong> 퇴직, 장기 휴직, 그룹사(계열사) 전출, PC/노트북 교체 (신규 기기 수령 시 동시 반납), 기타 회사 규정에 따른 사유.</li>
+                    <li><strong>반납 절차:</strong>
+                        <div class="ml-4 mt-2 space-y-2">
+                            <div class="process-step">
+                                <div class="process-step-number">1</div>
+                                <div>(필요시) ITSM 시스템에 '자산 반납 요청' SR 등록.</div>
+                            </div>
+                            <div class="process-arrow">▼</div>
+                            <div class="process-step">
+                                <div class="process-step-number">2</div>
+                                <div><strong>중요 데이터 백업:</strong> 반납 전 개인 업무 자료 <strong>반드시 사전 백업.</strong> (반납 기기는 초기화될 수 있음)</div>
+                            </div>
+                            <div class="process-arrow">▼</div>
+                            <div class="process-step">
+                                <div class="process-step-number">3</div>
+                                <div><strong>개인 파일 및 프로그램 완전 삭제.</strong></div>
+                            </div>
+                            <div class="process-arrow">▼</div>
+                            <div class="process-step">
+                                <div class="process-step-number">4</div>
+                                <div><strong>실물 자산 반납:</strong> 디지털 전략팀 또는 지정 IT서비스위탁사 담당자에게 구성품 일체 반납.</div>
+                            </div>
+                            <div class="process-arrow">▼</div>
+                            <div class="process-step">
+                                <div class="process-step-number">5</div>
+                                <div><strong>반납 확인:</strong> 담당자 확인 및 필요시 반납 확인서 서명.</div>
+                            </div>
+                             <div class="process-arrow">▼</div>
+                            <div class="process-step">
+                                <div class="process-step-number">6</div>
+                                <div><strong>S/W 라이선스 정리:</strong> 디지털 전략팀에서 회수 및 관리.</div>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+                <div class="p-4 mt-6 rounded-md border-l-4 border-red-500 bg-red-50 text-red-700 flex items-start space-x-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6 flex-shrink-0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    <div><strong class="font-semibold">중요:</strong> 반납 전 데이터 백업은 사용자의 책임입니다. 반납된 기기는 데이터 복구가 불가능하도록 처리될 수 있으니, 중요 자료는 반드시 미리 백업하세요!</div>
                 </div>
-                <div>
-                    <h3 class="sub-section-title">🎯 3. 평가 대상 선정: 무엇을 평가해야 할까요?</h3>
-                     <ul class="list-disc list-inside pl-4 text-sm">
-                        <li>모든 유해·위험요인 (작업 중 설비 포함)</li>
-                        <li>과거 산업재해 발생 작업, 위험한 일 발생 작업</li>
-                        <li>정상 작업 외 비정상 작업도 포함</li>
-                        <li>(단, 매우 경미한 부상/질병만 예상 시 제외 가능)</li>
-                        <li>묶어서 평가 가능 (동일 작업 시)</li>
-                    </ul>
-                    <p class="text-xs mt-1"><em>누가? 선정된 평가자가 대상 선정</em></p>
+            </section>
+
+            <section id="faq" class="mb-10 p-6 bg-white rounded-lg shadow-lg ring-1 ring-slate-200">
+                <h2 class="text-2xl font-bold seah-orange-text border-b-2 border-orange-500 pb-2 mb-6 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-3 h-7 w-7"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    궁금한 점이 있다면? (FAQ)
+                </h2>
+                <h4 class="text-lg font-medium text-slate-600 mb-4">"이럴 땐 어떻게 하죠?" 자주 묻는 질문들!</h4>
+                <dl class="faq-item space-y-4">
+                    <div>
+                        <dt>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-inline text-orange-500"><path d="M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20Zm-2-9a2 2 0 1 0 4 0 2 2 0 0 0-4 0Zm0 4a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z"/></svg>
+                            Q1. 업무용 S/W 외에 개인적으로 필요한 프로그램을 설치해도 되나요?
+                        </dt>
+                        <dd>A1. 회사에서 제공하거나 승인한 업무용 소프트웨어 외에 개인적인 프로그램(예: 게임, P2P, 개인용 유틸리티 등)의 임의 설치는 <strong>원칙적으로 금지</strong>됩니다. 라이선스 위반, 악성코드 감염, 시스템 불안정 등의 문제가 발생할 수 있습니다. 업무에 반드시 필요한 경우 사전에 디지털 전략팀과 협의해 주십시오.</dd>
+                    </div>
+                    <div>
+                        <dt>
+                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-inline text-orange-500"><path d="M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20Zm-2-9a2 2 0 1 0 4 0 2 2 0 0 0-4 0Zm0 4a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z"/></svg>
+                            Q2. 모니터, 키보드, 마우스 등 주변기기도 이 절차를 통해 신청하고 관리받나요?
+                        </dt>
+                        <dd>A2. 네, 기본적으로 PC/노트북 지급 시 함께 제공되며, 고장이나 추가 필요시 ITSM 시스템을 통해 요청하시면 지원받을 수 있습니다. 이 역시 회사의 자산으로 관리됩니다.</dd>
+                    </div>
+                    <div>
+                        <dt>
+                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-inline text-orange-500"><path d="M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20Zm-2-9a2 2 0 1 0 4 0 2 2 0 0 0-4 0Zm0 4a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z"/></svg>
+                            Q3. 재택근무 시 사용하는 개인 PC에 회사 업무용 S/W를 설치해도 되나요?
+                        </dt>
+                        <dd>A3. 보안 정책상 <strong>개인 PC에 회사 업무용 소프트웨어를 임의로 설치하는 것은 엄격히 금지</strong>됩니다. 재택근무는 회사에서 지급한 보안 설정이 완료된 노트북을 사용하거나, 회사가 제공하는 원격근무 솔루션(예: VPN, VDI)을 통해서만 접속해야 합니다. 자세한 내용은 정보보호 담당 부서의 재택근무 보안 가이드를 참고해 주십시오.</dd>
+                    </div>
+                     <div>
+                        <dt>
+                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-inline text-orange-500"><path d="M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20Zm-2-9a2 2 0 1 0 4 0 2 2 0 0 0-4 0Zm0 4a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z"/></svg>
+                            Q4. 노트북 배터리가 너무 빨리 닳는데, 배터리만 교체할 수 있나요?
+                        </dt>
+                        <dd>A4. 노트북 배터리는 소모품으로 성능 저하가 발생할 수 있습니다. 업무에 큰 불편이 있다면 ITSM 시스템을 통해 문의해 주십시오. 디지털 전략팀에서 점검 후 교체 가능 여부 및 절차를 안내해 드립니다. (상황에 따라 유상/무상 처리)</dd>
+                    </div>
+                    <div>
+                        <dt>
+                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-inline text-orange-500"><path d="M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20Zm-2-9a2 2 0 1 0 4 0 2 2 0 0 0-4 0Zm0 4a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z"/></svg>
+                            Q5. PC/노트북 윈도우 또는 주요 프로그램 비밀번호를 잊어버렸어요. 어떻게 해야 하나요?
+                        </dt>
+                        <dd>A5. 즉시 ITSM 시스템을 통해 '계정 비밀번호 초기화 요청' SR을 등록해 주십시오. 디지털 전략팀에서 본인 확인 후 지원해 드립니다. (비밀번호는 주기적으로 변경하고 안전하게 관리하세요!)</dd>
+                    </div>
+                     <div>
+                        <dt>
+                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-inline text-orange-500"><path d="M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20Zm-2-9a2 2 0 1 0 4 0 2 2 0 0 0-4 0Zm0 4a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z"/></svg>
+                            Q6. 지급받은 PC/노트북의 사양이 제 업무에 비해 부족한 것 같아요. 부품 업그레이드가 가능한가요?
+                        </dt>
+                        <dd>A6. 원칙적으로 회사 표준 사양으로 지급되며, 임의적인 부품 변경이나 업그레이드는 제한됩니다. 업무 특성상 명확하게 고사양이 요구되고 현재 기기로 업무 수행이 어렵다면, 부서장 승인을 받아 디지털 전략팀에 공식적으로 검토를 요청할 수 있습니다.</dd>
+                    </div>
+                    <div>
+                        <dt>
+                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-inline text-orange-500"><path d="M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20Zm-2-9a2 2 0 1 0 4 0 2 2 0 0 0-4 0Zm0 4a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z"/></svg>
+                            Q7. 해외 출장 시 회사 노트북을 가져가도 되나요? 주의사항이 있나요?
+                        </dt>
+                        <dd>A7. 네, 가능합니다. 다만, 출국 전 반드시 <strong>정보보호 담당 부서의 '해외 출장자 보안 가이드'</strong>를 숙지하고 필요한 보안 점검 및 승인 절차를 따라야 합니다. 분실 및 도난에 각별히 유의해야 합니다.</dd>
+                    </div>
+                     <div>
+                        <dt>
+                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-inline text-orange-500"><path d="M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20Zm-2-9a2 2 0 1 0 4 0 2 2 0 0 0-4 0Zm0 4a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z"/></svg>
+                            Q8. 랜선이나 USB 허브, 마우스패드 같은 작은 소모품도 디지털 전략팀에 요청해야 하나요?
+                        </dt>
+                        <dd>A8. 부서별 사무용 소모품 예산으로 자체 구매하는 경우가 많습니다. 다만, 표준 지급 품목 외의 특수한 IT 관련 소모품이나 대량 필요시에는 디지털 전략팀에 문의하여 지원 가능 여부를 확인해 보시는 것이 좋습니다.</dd>
+                    </div>
+                </dl>
+            </section>
+
+            <section id="contact" class="mb-10 p-6 bg-slate-50 rounded-lg shadow-lg ring-1 ring-slate-200">
+                <h2 class="text-2xl font-bold seah-orange-text border-b-2 border-orange-500 pb-2 mb-6 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-3 h-7 w-7"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                    도움이 필요할 땐 언제든 문의하세요! (문의처)
+                </h2>
+                <p class="mb-4 text-slate-700">IT 자산(PC, 노트북 등)과 관련하여 궁금한 점이나 문제가 발생하면 언제든지 아래로 문의해 주십시오. 신속하고 친절하게 지원해 드리겠습니다.</p>
+                <div class="bg-white p-6 rounded-md shadow ring-1 ring-slate-100 space-y-3">
+                    <p class="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-inline text-orange-500 mr-2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        <strong>담당 부서:</strong> <span class="ml-2 text-slate-600"><strong>디지털 전략팀</strong></span>
+                    </p>
+                    <p class="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-inline text-orange-500 mr-2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                        <strong>ITSM 시스템:</strong> <a href="https://its.seah.co.kr/" target="_blank" class="ml-2 text-blue-600 hover:underline hover:text-orange-600 transition-colors">https://its.seah.co.kr/</a>
+                    </p>
                 </div>
-                <div>
-                    <h3 class="sub-section-title">📚 4. 안전보건정보 사전조사: 어떤 자료를 참고해야 할까요?</h3>
-                     <ul class="list-disc list-inside pl-4 text-sm">
-                        <li>작업표준, 작업절차서</li>
-                        <li>기계·설비 사양서, 물질안전보건자료(MSDS)</li>
-                        <li>재해사례, 재해통계</li>
-                        <li>작업환경측정, 근로자 건강진단 결과</li>
-                    </ul>
-                    <p class="text-xs mt-1"><em>누가? 평가자가 관련 정보 수집 및 분석</em></p>
-                </div>
-            </div>
-        </section>
+            </section>
+        </main>
 
-        <section class="section-card" id="hazard-identification">
-            <h2 class="section-title">[2단계] 위험성 파악: 숨어있는 위험을 찾아라!</h2>
-            <p class="mb-4"><strong>유해·위험요인이란?</strong> 우리에게 부상이나 질병을 일으킬 수 있는 <strong>잠재적 가능성</strong>을 가진 모든 것!</p>
-            <h3 class="sub-section-title">🔍 어떻게 찾아낼까요? (파악 방법)</h3>
-            <ul class="list-disc list-inside mb-4 space-y-1 pl-4">
-                <li><strong>사업장 순회점검:</strong> 현장을 직접 둘러보며 위험요소 발굴 (안전관리자, 관리감독자)</li>
-                <li><strong>청취조사 (근로자 의견 청취):</strong> 현장 근로자의 생생한 경험과 의견이 중요! (안전제안, 공감위원회 등)</li>
-                <li><strong>안전보건 자료 활용:</strong> 재해조사보고서, 작업환경측정 결과, 건강진단 자료 등 참고</li>
-                <li><strong>안전보건 체크리스트 활용:</strong> 표준화된 목록을 통해 누락 없이 점검</li>
-                <li><strong>근로자 개별 유해위험요인 파악 조사표:</strong> 근로자별 작업 특성에 따른 위험요인 파악</li>
-            </ul>
-            <p class="mb-2"><strong>[참고] 재해유형별 분류 (부표#1):</strong> 넘어짐, 떨어짐, 끼임, 부딪힘, 절단·베임·찔림, 감전, 화재·폭발, 화학물질 누출·접촉 등등...</p>
-            
-            <h3 class="sub-section-title">🤔 위험 발생 가능성과 피해 규모는 어떻게 예상할까요?</h3>
-            <ul class="list-disc list-inside space-y-1 pl-4">
-                <li><strong>발생 가능성:</strong> 이 위험이 얼마나 <strong>자주</strong> 발생할 수 있을까?</li>
-                <li><strong>발생 시 피해 규모 (중대성):</strong> 만약 발생한다면 얼마나 <strong>큰 피해</strong>(다치거나 병에 걸리는 정도)를 입을까?</li>
-            </ul>
-            <div class="mt-4 p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 rounded-md">
-                 <span class="font-bold">✨ 팁:</span> "작은 위험이라도 놓치지 않는 것이 중요합니다! '설마' 하는 안일한 생각이 큰 사고로 이어질 수 있습니다."
-            </div>
-        </section>
-
-        <section class="section-card" id="estimation-decision">
-            <h2 class="section-title">[3단계] 위험성 추정 및 결정: 위험의 크기를 판단한다!</h2>
-            
-            <h3 class="sub-section-title">1. 발생 가능성: 얼마나 자주 일어날 수 있을까? (1점 ~ 4점)</h3>
-            <div class="overflow-x-auto mb-6">
-                <table class="min-w-full border border-gray-300 text-sm">
-                    <thead class="bg-gray-100">
-                        <tr>
-                            <th class="border p-2">구분</th>
-                            <th class="border p-2">점수</th>
-                            <th class="border p-2">내용 (OR 조건)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr><td class="border p-2">최상</td><td class="border p-2 text-center">4</td><td class="border p-2">사고 발생 가능성 <strong>매우 높음</strong> (최근 1년 내 산업재해 발생 / 월 1회 이상 아차사고 / 일 4시간 이상 노출 / 작업표준 없음 / 안전조치 없음 등)</td></tr>
-                        <tr><td class="border p-2">상</td><td class="border p-2 text-center">3</td><td class="border p-2">사고 발생 가능성 <strong>높음</strong> (최근 3년 내 산업재해 발생 / 분기 1회 이상 아차사고 / 일 2시간 이상 노출 / 작업표준 준수 어려움 / 안전조치 미흡 등)</td></tr>
-                        <tr><td class="border p-2">중</td><td class="border p-2 text-center">2</td><td class="border p-2">사고 발생 가능성 <strong>보통</strong> (부주의 시 발생 가능) (과거 사고 이력(5년 이내) / 반기 1회 이상 아차사고 / 일 1시간 이상 노출 / 안전조치 있으나 개선 필요 등)</td></tr>
-                        <tr><td class="border p-2">하</td><td class="border p-2 text-center">1</td><td class="border p-2">사고 발생 가능성 <strong>낮음</strong> (산업재해 이력 없음 / 연 1회 이상 아차사고(잠재) / 작업 드묾 / 작업표준 준수 / 안전조치 양호 등)</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <h3 class="sub-section-title">2. 발생 시 피해 정도 (중대성): 얼마나 심각할 수 있을까? (1점 ~ 5점)</h3>
-            <div class="overflow-x-auto mb-6">
-                <table class="min-w-full border border-gray-300 text-sm">
-                    <thead class="bg-gray-100">
-                        <tr>
-                            <th class="border p-2">구분</th>
-                            <th class="border p-2">점수</th>
-                            <th class="border p-2">내용 (OR 조건)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr><td class="border p-2">상</td><td class="border p-2 text-center">5</td><td class="border p-2"><strong>중대재해</strong> (사망, 영구적 근로불능 / 휴업손실 1년 이상)</td></tr>
-                        <tr><td class="border p-2">중상</td><td class="border p-2 text-center">4</td><td class="border p-2"><strong>장기 요양</strong> (절단, 화상, 다발골절, 감전 등 장애 잔존 / 휴업손실 3개월 ~ 1년)</td></tr>
-                        <tr><td class="border p-2">중</td><td class="border p-2 text-center">3</td><td class="border p-2"><strong>단기 요양</strong> (경미 화상, 골절 등 장애 미잔존 / 휴업손실 14일 ~ 3개월)</td></tr>
-                        <tr><td class="border p-2">중하</td><td class="border p-2 text-center">2</td><td class="border p-2"><strong>업무 지장 (응급처치 이상)</strong> (타박상, 자상, 긁힘, 삠 등 / 휴업손실 3일 ~ 14일 미만)</td></tr>
-                        <tr><td class="border p-2">하</td><td class="border p-2 text-center">1</td><td class="border p-2"><strong>업무 지장 없음 (응급처치 가능 경미 부상)</strong> (타박상, 자상, 긁힘, 삠 등 / 휴업손실 3일 미만)</td></tr>
-                    </tbody>
-                </table>
-            </div>
-            
-            <h3 class="sub-section-title">3. 위험성 수준 결정: 가능성 X 피해 정도 = 위험성!</h3>
-            <p class="mb-2">예시: 발생 가능성 '상(3점)' X 피해 정도 '중상(4점)' = 위험성 <strong>'12점 (보통)'</strong></p>
-            <p class="mb-4 text-gray-700">(문서 11페이지의 곱셈표(위험성 수준 매트릭스)를 참고하여 위험성 수준을 결정합니다. 일반적으로 색상으로 구분된 매트릭스 형태입니다.)</p>
-            <div class="chart-container mb-6">
-                <canvas id="riskLevelDistributionChart" height="350" style="display: block; box-sizing: border-box; height: 350px; width: 600px;" width="600"></canvas>
-            </div>
-            <p class="text-xs text-center text-gray-500 mb-6">위험성 수준별 분포 (샘플 데이터)</p>
-
-
-            <h3 class="sub-section-title">4. 허용 가능한 위험인가? (허용/불허용 판단 기준)</h3>
-            <div class="overflow-x-auto">
-                <table class="min-w-full border border-gray-300 text-sm">
-                    <thead class="bg-gray-100">
-                        <tr>
-                            <th class="border p-2">위험성 수준</th><th class="border p-2">구분</th><th class="border p-2">관리기준 (허용/불허용 판단)</th><th class="border p-2">후속관리</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr class="bg-green-50"><td class="border p-2">1~4점</td><td class="border p-2">매우 낮음</td><td class="border p-2">허용</td><td class="border p-2">현재 안전조치 확인 및 관리</td></tr>
-                        <tr class="bg-green-100"><td class="border p-2">5~8점</td><td class="border p-2">낮음</td><td class="border p-2">허용</td><td class="border p-2">현재 안전조치 확인 및 관리 (필요시 감소대책)</td></tr>
-                        <tr class="bg-yellow-100"><td class="border p-2">9~12점</td><td class="border p-2">보통</td><td class="border p-2">허용</td><td class="border p-2">현재 안전조치 확인 및 관리 (필요시 감소대책)</td></tr>
-                        <tr class="bg-orange-200"><td class="border p-2">13~16점</td><td class="border p-2">높음</td><td class="border p-2 brand-orange font-bold">불허용</td><td class="border p-2"><strong>감소대책 수립 및 개선 조치 필수!</strong></td></tr>
-                        <tr class="bg-red-200"><td class="border p-2">17~20점</td><td class="border p-2">매우 높음</td><td class="border p-2 brand-red font-bold">불허용</td><td class="border p-2"><strong>감소대책 수립 및 개선 조치 필수! (즉시 개선 필요 시 잠정조치)</strong></td></tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="mt-4 p-3 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-md">
-                 <span class="font-bold">🚨 중요:</span> "위험성 수준 '높음' 이상은 반드시 개선해야 합니다! 우리 모두의 안전을 위해 타협은 없습니다!"
-            </div>
-        </section>
-
-        <section class="section-card" id="reduction-measures">
-            <h2 class="section-title">[4단계] 위험성 감소대책 수립 및 실행: 안전을 확보하라!</h2>
-            <h3 class="sub-section-title">판단 결과에 따른 조치</h3>
-            <ul class="list-disc list-inside mb-4 space-y-2 pl-4">
-                <li><strong>허용 가능한 위험 (위험성 낮음 ~ 보통):</strong> 현재 안전조치(관리대책)를 지속 유지/관리. 필요시 더 안전한 방법 검토/개선. <br><em class="text-sm">"괜찮다고 안심하지 말고, 더 안전해질 수 있도록 노력해요!"</em></li>
-                <li><strong>허용 불가능한 위험 (위험성 높음 ~ 매우 높음):</strong> 반드시! 위험성 감소대책 수립 및 실행. <br><em class="text-sm">"위험을 방치하는 것은 사고를 부르는 것과 같습니다!"</em></li>
-            </ul>
-
-            <h3 class="sub-section-title">위험성 감소대책 종류와 우선순위 (Hierarchy of Controls)</h3>
-            <p class="mb-4 text-gray-700">다음은 위험성 감소대책의 우선순위입니다. 가장 효과적인 것부터 적용합니다.</p>
-            <div class="pyramid-container">
-                <div class="pyramid-level w-full md:w-3/4 lg:w-1/2" style="background-color: #FFEBCC; border-color: #FD7E14;">
-                    <strong class="brand-orange">5. 개인보호구 지급 및 착용</strong>
-                    <p class="text-xs">(예: 안전모, 안전화, 보안경, 방독마스크 등)</p>
-                </div>
-                <div class="pyramid-level w-full md:w-5/6 lg:w-7/12" style="background-color: #D1E7DD; border-color: #28A745;">
-                    <strong class="brand-green">4. 관리적 대책</strong>
-                    <p class="text-xs">(예: 작업절차서 정비, 안전교육 강화, 작업자 교대 등)</p>
-                </div>
-                 <div class="pyramid-level w-full md:w-11/12 lg:w-3/4" style="background-color: #CFE2FF; border-color: #357ABD;">
-                    <strong class="brand-medium-blue">3. 공학적 대책</strong>
-                    <p class="text-xs">(예: 인터록, 방호장치, 안전울타리 설치 등)</p>
-                </div>
-                <div class="pyramid-level w-full" style="background-color: #F8D7DA; border-color: #DC3545;">
-                    <strong class="brand-red">1 &amp; 2. 본질적(근본적) 대책</strong>
-                    <p class="text-xs">(위험원 제거 또는 대체: 예: 자동화, 덜 위험한 물질로 대체)</p>
-                </div>
-            </div>
-            <p class="mt-4 text-sm text-gray-600 text-center">가장 효과적인 대책 (제거/대체) 🔼 가장 덜 효과적인 대책 (개인보호구)</p>
-
-
-            <h3 class="sub-section-title mt-6">개선 후, 다시 한번 확인!</h3>
-            <ul class="list-disc list-inside space-y-1 pl-4">
-                <li>감소대책 실행 후, 해당 작업의 위험성 수준이 실제로 낮아졌는지 <strong>재평가</strong>합니다.</li>
-                <li>위험성이 충분히 낮아지지 않았다면, <strong>추가적인 감소대책을 수립하고 실행</strong>해야 합니다.</li>
-                <li>중대재해/중대산업사고 우려가 높은 위험은 개선에 시간이 오래 걸릴 경우, <strong>즉시 잠정적인 조치를 우선 시행</strong>합니다.</li>
-                <li>이러한 내용은 <strong>반드시 근로자에게 알려야 합니다!</strong></li>
-            </ul>
-        </section>
-
-        <section class="section-card" id="recording-sharing">
-            <h2 class="section-title">[5단계] 기록 및 공유: 모두가 알고 실천하도록!</h2>
-            <div class="grid md:grid-cols-3 gap-6">
-                <div>
-                    <h3 class="sub-section-title">📣 1. 관리대책/감소대책 이행 및 공유</h3>
-                    <p class="mb-2">수립된 관리대책 및 감소대책은 <strong>반드시 이행</strong>되어야 합니다.</p>
-                    <p>부서장은 위험성평가 결과 및 대책을 해당 작업 <strong>근로자에게 명확히 공유</strong>해야 합니다. (작업장 게시, 교육 등)</p>
-                    <em class="text-sm">"나만 아는 안전 정보는 소용없어요! 모두가 알아야 안전해집니다."</em>
-                </div>
-                <div>
-                    <h3 class="sub-section-title">💾 2. 모니터링 및 기록 유지</h3>
-                    <p class="mb-2">부서장은 위험성평가 관리/감소 대책 이행 여부를 <strong>지속적으로 모니터링</strong>합니다.</p>
-                    <p>위험성평가 결과 및 이행 상황은 <strong>SHE(통합시스템)에 기록하고 유지</strong>합니다. (KRAS+SEAH 양식 등 <strong>3년 보존</strong>)</p>
-                     <em class="text-sm">"기록은 책임의 증거이자, 미래의 안전을 위한 자산입니다."</em>
-                </div>
-                <div>
-                    <h3 class="sub-section-title">🧐 3. 정기적인 점검 및 시정조치</h3>
-                    <p class="mb-2">안전팀은 이행 여부 및 필요 조치 사항을 <strong>정기적으로 점검하고 지도</strong>합니다 (반기 1회 이상).</p>
-                    <p class="mb-2">미흡/부적합 사항은 <strong>즉시 시정조치를 요구하고 결과를 확인</strong>합니다.</p>
-                    <p>점검 결과는 <strong>안전보건관리책임자 및 경영책임자에게 보고</strong>하고, 필요시 시정 조치합니다.</p>
-                    <em class="text-sm">"지속적인 관심과 점검만이 안전문화를 정착시킬 수 있습니다."</em>
-                </div>
-            </div>
-        </section>
-
-        <section class="section-card" id="terminology">
-            <h2 class="section-title">핵심 용어 정리</h2>
-            <dl class="space-y-3">
-                <div><dt class="font-semibold brand-medium-blue">위험성평가</dt><dd class="text-sm ml-4">유해·위험요인을 파악하고, 발생 가능성(빈도)과 중대성(강도)을 추정·결정하여 감소대책을 수립·실행하는 일련의 과정.</dd></div>
-                <div><dt class="font-semibold brand-medium-blue">유해·위험요인</dt><dd class="text-sm ml-4">우리에게 해를 끼칠 잠재적 가능성이 있는 것의 고유한 특징이나 속성. (예: 높은 곳, 날카로운 칼날, 유독가스)</dd></div>
-                <div><dt class="font-semibold brand-medium-blue">유해·위험요인 파악</dt><dd class="text-sm ml-4">숨어있는 유해요인과 위험요인을 찾아내는 과정.</dd></div>
-                <div><dt class="font-semibold brand-medium-blue">위험성</dt><dd class="text-sm ml-4">유해·위험요인이 사망, 부상 또는 질병으로 이어질 수 있는 발생 가능성과 피해 심각성을 조합한 위험의 정도.</dd></div>
-                <div><dt class="font-semibold brand-medium-blue">위험성 추정</dt><dd class="text-sm ml-4">위험성의 크기를 예상하여 산출하는 것.</dd></div>
-                <div><dt class="font-semibold brand-medium-blue">위험성 결정</dt><dd class="text-sm ml-4">추정된 위험성의 크기가 허용 가능한 범위인지 판단하는 것.</dd></div>
-                <div><dt class="font-semibold brand-medium-blue">위험성 감소대책 수립 및 실행</dt><dd class="text-sm ml-4">허용 불가능한 위험성을 합리적으로 실천 가능한 범위에서 가능한 한 낮은 수준으로 줄이기 위한 대책을 세우고 실행하는 것.</dd></div>
-                <div><dt class="font-semibold brand-medium-blue">기록</dt><dd class="text-sm ml-4">위험성평가 활동의 근거와 결과를 문서로 작성하여 보존하는 것.</dd></div>
-            </dl>
-        </section>
-
-        <section class="section-card" id="responsibilities">
-            <h2 class="section-title">우리의 책임과 권한</h2>
-            <ul class="space-y-4">
-                <li><strong>안전보건총괄책임자:</strong> 전체 위험성평가 총괄 관리, 전 부서 시행 및 개선여부 점검.</li>
-                <li><strong>안전보건 전담부서 (안전팀):</strong> 전체 위험성평가 계획 수립 및 관리, 전 부서 시행 및 개선여부 점검.</li>
-                <li><strong>관련부서 및 파트너사 (우리 모두!):</strong>
-                    <ul class="list-disc list-inside ml-6 mt-1 text-sm space-y-1">
-                        <li><strong>팀장(관리감독자):</strong> 관할 구역(파트너사 포함) 주요 위험요인 포함 작업 위험성평가 실시 및 조치계획 수립.</li>
-                        <li><strong>모든 부서원 및 파트너사 직원:</strong> 각자 위험성평가 실시, 조치계획 이행 및 결과 교육.</li>
-                    </ul>
-                </li>
-            </ul>
-            <div class="mt-4 p-3 bg-blue-100 border-l-4 border-blue-500 text-blue-700 rounded-md">
-                <span class="font-bold">🤝 참여:</span> "안전은 누구 한 사람의 책임이 아닙니다. 우리 모두의 적극적인 참여가 필요합니다!"
-            </div>
-        </section>
-
-        <section class="section-card" id="record-keeping">
-            <h2 class="section-title">기록물의 종류 및 보존</h2>
-            <h3 class="sub-section-title">어떤 기록을 남겨야 할까요? (주요 기록)</h3>
-            <div class="overflow-x-auto mb-6">
-                <table class="min-w-full border border-gray-300 text-sm">
-                    <thead class="bg-gray-100">
-                        <tr>
-                            <th class="border p-2">No</th><th class="border p-2">기록명</th><th class="border p-2">양식번호</th><th class="border p-2">구분</th><th class="border p-2">관리부서</th><th class="border p-2">보존년한</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr><td class="border p-2 text-center">1</td><td class="border p-2">KRAS+SEAH 기법 양식</td><td class="border p-2">SB-D-5602-F1</td><td class="border p-2">공통</td><td class="border p-2">전 부서</td><td class="border p-2">3년</td></tr>
-                        <tr><td class="border p-2 text-center">2</td><td class="border p-2">Check list 기법 양식</td><td class="border p-2">SB-D-5602-F2</td><td class="border p-2">공통</td><td class="border p-2">전 부서</td><td class="border p-2">3년</td></tr>
-                        <tr><td class="border p-2 text-center">3</td><td class="border p-2">작업안전분석기법 지침</td><td class="border p-2">SB-D-5602-F3</td><td class="border p-2">공통</td><td class="border p-2">전 부서</td><td class="border p-2">3년</td></tr>
-                    </tbody>
-                </table>
-            </div>
-            <h3 class="sub-section-title">관련된 우리 회사 규정은 무엇이 있나요?</h3>
-            <ul class="list-disc list-inside pl-4 text-sm space-y-1">
-                <li>SB-A-5600 안전보건관리규정</li>
-                <li>SB-D-5601 안전보건 활동 계획 업무표준</li>
-                <li>SB-D-5608 외주공사업체 안전관리 업무표준</li>
-                <li>SB-D-5616 비상 시 대비대응 업무표준</li>
-                <li>SB-D-5617 파트너사 안전보건관리 업무표준</li>
-            </ul>
-             <div class="mt-4 p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 rounded-md">
-                <span class="font-bold">🔒 보존:</span> "모든 위험성평가 활동은 문서화하여 기록으로 남기고, 정해진 기간 동안 보존해야 합니다."
-            </div>
-        </section>
-
-        <section class="section-card text-center" id="conclusion">
-            <h2 class="section-title">맺음말</h2>
-            <p class="text-xl font-semibold brand-green mb-4">안전은 선택이 아닌 필수입니다!</p>
-            <p class="mb-3">위험성평가는 우리 스스로와 동료의 안전을 지키는 가장 효과적인 방법입니다.</p>
-            <p class="mb-3">오늘 배운 내용을 바탕으로, 작업 현장의 위험요인을 적극적으로 찾아내고 개선하는 데 동참해 주십시오.</p>
-            <p class="text-lg font-medium brand-dark-blue mb-6">작은 관심과 실천이 모여 안전한 SeAH Besteel을 만듭니다.</p>
-            <hr class="my-6">
-            <p class="text-lg mb-2">궁금한 점이 있으신가요?</p>
-            <p class="text-2xl font-bold brand-medium-blue mb-6">질의응답</p>
-            <p class="text-lg font-bold brand-dark-blue">감사합니다.</p>
-            <p class="mt-2 text-2xl font-bold brand-dark-blue">SeAH Besteel</p>
-        </section>
-
+        <footer class="text-center pt-8 mt-10 border-t border-slate-300">
+            <!-- <img src="images/seah_logo_gray.png" alt="SeAH Logo" class="logo-footer mx-auto mb-3 w-20 opacity-75"> 로고 이미지가 있다면 경로 지정 -->
+            <p class="text-sm text-slate-500">&copy; <span id="currentYear"></span> SeAH. All Rights Reserved.</p>
+            <p class="text-sm text-slate-500 mt-1">안전하고 효율적인 IT 환경, 함께 만들어갑니다!</p>
+        </footer>
     </div>
 
     <script>
-        // Chart.js Label Wrapping Function
-        function wrapText(text, maxWidth) {
-            if (typeof text !== 'string') return text; // Only process strings
-            if (text.length <= maxWidth) return text;
-
-            const words = text.split(' ');
-            const lines = [];
-            let currentLine = words[0];
-
-            for (let i = 1; i < words.length; i++) {
-                if ((currentLine + " " + words[i]).length > maxWidth) {
-                    lines.push(currentLine);
-                    currentLine = words[i];
-                } else {
-                    currentLine += " " + words[i];
-                }
-            }
-            lines.push(currentLine);
-            return lines;
-        }
-
-        // Tooltip Configuration
-        const tooltipTitleCallback = function(tooltipItems) {
-            const item = tooltipItems[0];
-            let label = item.chart.data.labels[item.dataIndex];
-            if (Array.isArray(label)) {
-                return label.join(' ');
-            } else {
-                return label;
-            }
-        };
-        
-        // Sample data for Risk Level Distribution Chart
-        const riskLevelData = {
-            labels: ['매우 높음', '높음', '보통', '낮음', '매우 낮음'].map(label => wrapText(label,16)),
-            datasets: [{
-                label: '위험성 수준별 분포 (건수)',
-                data: [3, 7, 12, 5, 2], // Mocked data
-                backgroundColor: [
-                    '#DC3545', // Red - 매우 높음
-                    '#FD7E14', // Orange - 높음
-                    '#FFC107', // Yellow - 보통 (Tailwind amber-400 or similar)
-                    '#28A745', // Green - 낮음
-                    '#198754'  // Darker Green - 매우 낮음
-                ],
-                borderColor: [
-                    '#B02A37',
-                    '#C6650F',
-                    '#CCA300',
-                    '#1F8035',
-                    '#125F3C'
-                ],
-                borderWidth: 1
-            }]
-        };
-
-        const riskLevelConfig = {
-            type: 'bar',
-            data: riskLevelData,
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: '위험 건수'
-                        }
-                    },
-                    x: {
-                         title: {
-                            display: true,
-                            text: '위험성 수준'
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false // Or true if you want to show it
-                    },
-                    tooltip: {
-                        callbacks: {
-                            title: tooltipTitleCallback
-                        }
-                    }
-                }
-            }
-        };
-
-        // Function to download HTML content
-        function downloadHTML() {
-            const htmlContent = document.documentElement.outerHTML;
-            const blob = new Blob([htmlContent], { type: 'text/html' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'seah_besteel_infographic.html';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(a.href);
-        }
-
-        // Render Chart and Attach Download Listener
-        window.onload = function() {
-            const riskChartCtx = document.getElementById('riskLevelDistributionChart');
-            if (riskChartCtx) {
-                 new Chart(riskChartCtx, riskLevelConfig);
-            }
-
-            const downloadBtn = document.getElementById('downloadButton');
-            if (downloadBtn) {
-                downloadBtn.addEventListener('click', downloadHTML);
-            }
-        };
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
     </script>
-
-
-</body></html>
+</body>
+</html>
