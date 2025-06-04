@@ -1,0 +1,1107 @@
+<html lang="ko"><head><script>(function(firebaseConfig, initialAuthToken, appId) {
+        window.__firebase_config = firebaseConfig;
+        window.__initial_auth_token = initialAuthToken;
+        window.__app_id = appId;
+            })("\n{\n  \"apiKey\": \"AIzaSyCqyCcs2R2e7AegGjvFAwG98wlamtbHvZY\",\n  \"authDomain\": \"bard-frontend.firebaseapp.com\",\n  \"projectId\": \"bard-frontend\",\n  \"storageBucket\": \"bard-frontend.firebasestorage.app\",\n  \"messagingSenderId\": \"175205271074\",\n  \"appId\": \"1:175205271074:web:2b7bd4d34d33bf38e6ec7b\"\n}\n","eyJhbGciOiJSUzI1NiIsImtpZCI6IjhmODcxYTU0ODRjYWM0MjU5NTBiNzhiNGZhNWMxZGZlMjkzYjgwYWEiLCJ0eXAiOiJKV1QifQ.eyJzdWIiOiJmaXJlYmFzZS1hZG1pbnNkay1mYnN2Y0BiYXJkLWZyb250ZW5kLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwiYXVkIjoiaHR0cHM6XC9cL2lkZW50aXR5dG9vbGtpdC5nb29nbGVhcGlzLmNvbVwvZ29vZ2xlLmlkZW50aXR5LmlkZW50aXR5dG9vbGtpdC52MS5JZGVudGl0eVRvb2xraXQiLCJ1aWQiOiIwNTk1NDQ1Njk2NTIzODEyNjA5NiIsImlzcyI6ImZpcmViYXNlLWFkbWluc2RrLWZic3ZjQGJhcmQtZnJvbnRlbmQuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCJleHAiOjE3NDkwMjQ3NzEsImlhdCI6MTc0OTAyMTE3MSwiYWxnIjoiUlMyNTYifQ.WU-Qx56_hmiaA48uZdWLnfq2CEBxBTwC-9Pdtamz7m3HuiyKa6jce4XwuyBtfL5lx78ACuNkb3RQZJp3BPgYunzIKroAsmE-FUSmOMNOD3KMew2Qsn2kbcSK4fDp4sIDccMbC2OnJMsSdeHY01Jtr89XpUuwcp9jE5CwfDTjMLicdosGx65tJQHUCPSFKasPP7rGixj_ok2RO1T9NplpXGa7Jr875sEeugB9huZJDPnJM_ftiM2EoV1KvE7NjNmhyAH7V2nHdhun4Zb6b4WAe4tKfQpY3XYjeQqQwroNCV8cGh1odJsjQFbvhpvf-29uMlKV6I5qGBcjERZfeu9d7w","c_2409b48c7f145069_seah_besteel_infographic_spa_v1-171")</script><script>(function() {
+  // Ensure this script is executed only once
+  if (window.firebaseAuthBridgeScriptLoaded) {
+    return;
+  }
+  window.firebaseAuthBridgeScriptLoaded = true;
+
+  let nextTokenPromiseId = 0;
+
+  // Stores { resolve, reject } for ongoing token requests
+  const pendingTokenPromises = {};
+
+  // Listen for messages from the Host Application
+  window.addEventListener('message', function(event) {
+
+    const messageData = event.data;
+
+  if (messageData && messageData.type === 'RESOLVE_NEW_FIREBASE_TOKEN') {
+      const { success, token, error, promiseId } = messageData ?? {};
+      if (pendingTokenPromises[promiseId]) {
+        if (success) {
+          pendingTokenPromises[promiseId].resolve(token);
+        } else {
+          pendingTokenPromises[promiseId].reject(new Error(error || 'Token refresh failed from host.'));
+        }
+        delete pendingTokenPromises[promiseId];
+      }
+    }
+  });
+
+  // Expose a function for the Generated App to request a new Firebase token
+  window.requestNewFirebaseToken = function() {
+    const currentPromiseId = nextTokenPromiseId++;
+    const promise = new Promise((resolve, reject) => {
+      pendingTokenPromises[currentPromiseId] = { resolve, reject };
+    });
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({
+        type: 'REQUEST_NEW_FIREBASE_TOKEN',
+        promiseId: currentPromiseId
+      }, '*');
+    } else {
+      pendingTokenPromises[currentPromiseId].reject(new Error('No parent window to request token from.'));
+      delete pendingTokenPromises[currentPromiseId];
+    }
+    return promise;
+  };
+})();</script><script>let realOriginalGetUserMedia = null;
+if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+  realOriginalGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+}
+
+(function() {
+  if (navigator.mediaDevices && navigator.mediaDevices.__proto__) {
+    try {
+      Object.defineProperty(navigator.mediaDevices.__proto__, 'getUserMedia', {
+        get: function() {
+          return undefined; // Or throw an error
+        },
+        configurable: false
+      });
+    } catch (error) {
+      console.error("Error defining prototype getter:", error);
+    }
+  }
+})();
+
+(function() {
+  let originalGetUserMedia = realOriginalGetUserMedia;
+
+  const pendingMediaResolvers = {};
+  let nextMediaPromiseId = 0;
+
+  function interceptGetUserMedia() {
+    if (navigator.mediaDevices) {
+      Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
+        value: function(constraints) {
+          const mediaPromiseId = nextMediaPromiseId++;
+          const promise = new Promise((resolve, reject) => {
+            pendingMediaResolvers[mediaPromiseId] = (granted) => {
+              delete pendingMediaResolvers[mediaPromiseId];
+              if (granted) {
+                if (originalGetUserMedia) {
+                  originalGetUserMedia(constraints).then(resolve).catch(reject);
+                } else {
+                  reject(new Error("Original getUserMedia not available."));
+                }
+              } else {
+              reject(new DOMException('Permission denied', 'NotAllowedError'));
+            }
+          };
+        });
+
+        window.parent.postMessage({
+          type: 'requestMediaPermission',
+          constraints: constraints,
+          promiseId: mediaPromiseId,
+        }, '*');
+
+        return promise;
+      },
+      writable: false,
+      configurable: false
+    });
+    }
+  }
+
+  interceptGetUserMedia();
+
+  const observer = new MutationObserver(function(mutationsList, observer) {
+    for (const mutation of mutationsList) {
+      if (mutation.type === 'reconfigured' && mutation.name === 'getUserMedia' && mutation.object === navigator.mediaDevices) {
+        interceptGetUserMedia();
+      } else if (mutation.type === 'attributes' && mutation.attributeName === 'getUserMedia' && mutation.target === navigator.mediaDevices) {
+        interceptGetUserMedia();
+      } else if (mutation.type === 'childList' && mutation.addedNodes) {
+        mutation.addedNodes.forEach(node => {
+          if (node === navigator.mediaDevices) {
+            interceptGetUserMedia();
+          }
+        });
+      }
+    }
+  });
+
+  window.addEventListener('message', function(event) {
+    if (event.data) {
+      if (event.data.type === 'resolveMediaPermission') {
+        const { promiseId, granted } = event.data;
+        if (pendingMediaResolvers[promiseId]) {
+          pendingMediaResolvers[promiseId](granted);
+        }
+      }
+    }
+  });
+
+})();</script><script>(function() {
+  const originalFetch = window.fetch;
+  const googleLlmBaseApiUrls = [
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict',
+    'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predictLongRunning',
+    'https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predict',
+    'https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predictLongRunning',
+  ];
+
+  const pendingFetchResolvers = {};
+  let nextPromiseId = 0;
+
+  function handleStringInput(input, optionsArgument) {
+    const actualUrl = input;
+    const fetchCallArgs = [actualUrl, optionsArgument];
+    const effectiveOptions = optionsArgument || {};
+    const bodyForApiKeyCheck = effectiveOptions.body;
+    const bodyForPostMessage = effectiveOptions.body;
+    return { actualUrl, fetchCallArgs, effectiveOptions, bodyForApiKeyCheck, bodyForPostMessage };
+  }
+
+  function handleRequestInput(input, optionsArgument) {
+    const actualUrl = input.url;
+    const fetchCallArgs = [input, optionsArgument];
+    const effectiveOptions = { method: input.method, headers: new Headers(input.headers) };
+    let bodyForApiKeyCheck;
+    let bodyForPostMessage;
+
+    if (optionsArgument) {
+      if (optionsArgument.method) effectiveOptions.method = optionsArgument.method;
+      if (optionsArgument.headers) effectiveOptions.headers = new Headers(optionsArgument.headers);
+      if ('body' in optionsArgument) {
+        bodyForApiKeyCheck = optionsArgument.body;
+        bodyForPostMessage = optionsArgument.body;
+      } else {
+        bodyForApiKeyCheck = undefined;
+        bodyForPostMessage = input.body;
+      }
+    } else {
+      bodyForApiKeyCheck = undefined;
+      bodyForPostMessage = input.body;
+    }
+    return { actualUrl, fetchCallArgs, effectiveOptions, bodyForApiKeyCheck, bodyForPostMessage };
+  }
+
+  window.fetch = function(input, optionsArgument) {
+    let actualUrl;
+    let fetchCallArgs;
+    let effectiveOptions = {};
+    let bodyForApiKeyCheck;
+    let bodyForPostMessage;
+
+    if (typeof input === 'string') {
+      ({actualUrl, fetchCallArgs, effectiveOptions, bodyForApiKeyCheck, bodyForPostMessage} = handleStringInput(input, optionsArgument));
+    } else if (input instanceof Request) {
+      ({actualUrl, fetchCallArgs, effectiveOptions, bodyForApiKeyCheck, bodyForPostMessage} = handleRequestInput(input, optionsArgument));
+    } else {
+      return originalFetch.apply(window, [input, optionsArgument]);
+    }
+
+    effectiveOptions.method = effectiveOptions.method || 'GET';
+    if (!effectiveOptions.headers) {
+      effectiveOptions.headers = new Headers();
+    }
+
+
+    if (typeof actualUrl === 'string' && googleLlmBaseApiUrls.some((url) => actualUrl.startsWith(url))) {
+      let apiKeyIsNull = true;
+
+      const regex = new RegExp("models/([^:]+)");
+      const modelNameMatch = actualUrl.match(regex);
+      const modelName = modelNameMatch ? modelNameMatch[1] : 'unspecified';
+
+
+      try {
+        const urlObject = new URL(actualUrl);  // Use URL object for robust parsing
+        const apiKeyParam = urlObject.searchParams.get('key');
+        if (apiKeyParam) {
+          apiKeyIsNull = false;
+        }
+      } catch (e) {
+        // Continue checks even if URL parsing fails
+      }
+
+      if (apiKeyIsNull && effectiveOptions.headers) {
+        const h = new Headers(effectiveOptions.headers);
+        const apiKeyHeaderValue = h.get('X-API-Key') || h.get('x-api-key');
+        if (apiKeyHeaderValue) {
+          apiKeyIsNull = false;
+          return originalFetch.apply(window, fetchCallArgs);
+        }
+      }
+
+      if (apiKeyIsNull && effectiveOptions.method && ['POST', 'PUT', 'PATCH'].includes(effectiveOptions.method.toUpperCase()) && typeof bodyForApiKeyCheck === 'string') {
+        try {
+          const bodyData = JSON.parse(bodyForApiKeyCheck);
+          if (bodyData && bodyData.apiKey) {
+            apiKeyIsNull = false;
+            return originalFetch.apply(window, fetchCallArgs);
+          }
+        } catch (e) {
+          // Ignore JSON parsing errors
+        }
+      }
+
+      if(apiKeyIsNull) {
+        const promiseId = nextPromiseId++;
+        const promise = new Promise((resolve) => {
+          pendingFetchResolvers[promiseId] = (resolvedResponse) => {
+            delete pendingFetchResolvers[promiseId];
+            resolve(resolvedResponse);
+          };
+        });
+
+        let serializedBodyForPostMessage;
+        if (typeof bodyForPostMessage === 'string' || bodyForPostMessage == null) {
+            serializedBodyForPostMessage = bodyForPostMessage;
+        } else if (bodyForPostMessage instanceof ReadableStream) {
+            serializedBodyForPostMessage = null;
+        } else {
+            try {
+                serializedBodyForPostMessage = JSON.stringify(bodyForPostMessage);
+            } catch (e) {
+                serializedBodyForPostMessage = null;
+            }
+        }
+
+        const messageOptions = {
+            method: effectiveOptions.method,
+            headers: Object.fromEntries(new Headers(effectiveOptions.headers).entries()),
+            body: serializedBodyForPostMessage
+        };
+
+        window.parent.postMessage({
+          type: 'requestFetch',
+          url: actualUrl,
+          modelName: 'models/' + modelName,
+          options: messageOptions,
+          promiseId: promiseId,
+        }, '*');
+
+        return promise;
+      }
+      return originalFetch.apply(window, fetchCallArgs);
+    }
+    return originalFetch.apply(window, fetchCallArgs);
+  };
+
+  window.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'resolveFetch') {
+      const { promiseId, response } = event.data;
+      if (pendingFetchResolvers[promiseId]) {
+        try {
+          const reconstructedResponse = new Response(response.body, {
+            status: response.status,
+            statusText: response.statusText,
+            headers: new Headers(response.headers),
+          });
+          pendingFetchResolvers[promiseId](reconstructedResponse);
+        } catch (error) {
+          pendingFetchResolvers[promiseId](new Response(null, { status: 500, statusText: "Interceptor Response Reconstruction Error" }));
+        }
+      }
+    }
+  });
+
+})();</script><script>(function() {
+  const originalConsoleLog = console.log;
+  const originalConsoleError = console.error;
+
+    /**
+   * Normalizes an error event or a promise rejection reason into a structured error object.
+   * @param {*} errorEventOrReason The error object or reason.
+   * @return {object} Structured error data { message, name, stack }.
+   */
+  function getErrorObject(errorEventOrReason) {
+    if (errorEventOrReason instanceof Error) {
+      return {
+        message: errorEventOrReason.message,
+        name: errorEventOrReason.name,
+        stack: errorEventOrReason.stack,
+      };
+    }
+    // Fallback for non-Error objects.
+    try {
+      return {
+        message: JSON.stringify(errorEventOrReason),
+        name: 'UnknownErrorType',
+        stack: null,
+      };
+    } catch (e) {
+      return {
+        message: String(errorEventOrReason),
+        name: 'UnknownErrorTypeNonStringifiable',
+        stack: null,
+      };
+    }
+  }
+
+  /**
+   * Converts an array of arguments (from log/error) into a single string.
+   * Handles Error objects specially to include their message and stack.
+   * @param {Array<*>} args - Arguments passed to console methods.
+   * @return {string} A string representation of the arguments.
+   */
+  function stringifyArgs(args) {
+    return args
+      .map((arg) => {
+        if (arg instanceof Error) {
+          const {message, stack} = arg;
+          return `Error: ${message}${stack ? ('\nStack: ' + stack) : ''}`;
+        }
+        if (typeof arg === 'object' && arg !== null) {
+          try {
+            return JSON.stringify(arg);
+          } catch (error) {
+            return '[Circular Object]';
+          }
+        } else {
+          return String(arg);
+        }
+      })
+      .join(' ');
+  }
+
+  console.log = function(...args) {
+    const logString = stringifyArgs(args);
+    window.parent.postMessage({ type: 'log', message: logString }, '*');
+    originalConsoleLog.apply(console, args);
+  };
+
+  console.error = function(...args) {
+    let errorData;
+    if (args.length > 0 && args[0] instanceof Error) {
+      const err = args[0];
+      // If the first arg is an Error, capture its details.
+      errorData = {
+        type: 'error',
+        source: 'CONSOLE_ERROR',
+        ...getErrorObject(err),
+        rawArgsString: stringifyArgs(args.slice(1)),
+        timestamp: new Date().toISOString(),
+      };
+    } else {
+      // If not an Error object, treat all args as a general error message.
+      errorData = {
+        type: 'error',
+        source: 'CONSOLE_ERROR',
+        message: stringifyArgs(args),
+        name: 'ConsoleLoggedError',
+        stack: null,
+        timestamp: new Date().toISOString(),
+      };
+    }
+    window.parent.postMessage(errorData, '*');
+    originalConsoleError.apply(console, args);
+  };
+
+  // Listen for global unhandled synchronous errors.
+  window.addEventListener('error', function(event) {
+    const errorDetails = event.error ? getErrorObject(event.error) : {
+      message: event.message,
+      name: 'GlobalError',
+      stack: null,
+      filename: event.filename,
+      lineno: event.lineno,
+      colno: event.colno,
+    };
+
+    window.parent.postMessage({
+      type: 'error',
+      source: 'global',
+      ...errorDetails,
+      message: errorDetails.message || event.message,
+      timestamp: new Date().toISOString(),
+    }, '*');
+  });
+
+  // Listen for unhandled promise rejections (asynchronous errors).
+  window.addEventListener('unhandledrejection', function(event) {
+    const errorDetails = getErrorObject(event.reason);
+
+    window.parent.postMessage({
+      type: 'error',
+      source: 'unhandledrejection',
+      ...errorDetails,
+      message: errorDetails.message || 'Unhandled Promise Rejection',
+      timestamp: new Date().toISOString(),
+    }, '*');
+  });
+
+})();</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SeAH Besteel 위험성평가 업무표준 인포그래픽</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin="anonymous"></script>
+    <!-- 
+        Infographic Plan Summary:
+        The infographic visualizes SeAH Besteel's Risk Assessment Work Standard.
+        It follows the structure of the provided training material (seah_besteel_risk_assessment_slides_v1).
+        Sections cover:
+        1.  Cover/Intro
+        2.  Purpose & Definition of Risk Assessment
+        3.  Overview of SeAH's Process (Doc Info, Purpose, Scope)
+        4.  Process Flow (Input-Process-Output) - HTML/CSS Diagram
+        5.  Process Interconnections - HTML/CSS Diagram
+        6.  Step 1: Planning (Timing, Assessors, Scope, Info Gathering) - Lists
+        7.  Step 2: Hazard Identification (Definition, Methods, Examples) - Lists
+        8.  Step 3: Risk Estimation & Decision (Matrices, Criteria) - HTML Tables, Chart.js Bar Chart for Risk Level Distribution
+        9.  Step 4: Risk Reduction Measures (Hierarchy) - HTML/CSS Diagram or List
+        10. Step 5: Recording & Sharing (Communication, Monitoring, Records) - Lists
+        11. Key Terminology - Lists
+        12. Responsibilities & Authorities - Lists
+        13. Record Keeping (Types, Retention) - HTML Table
+        14. Conclusion
+
+        Chosen Color Palette: "SeAH Safety Blue & Green Palette"
+        - Dark Blue (Primary Headers, Accents): #0A2B4E
+        - Medium Blue (Secondary Headers, Chart Elements): #357ABD
+        - Green (Positive/Safe Accents, Chart Elements): #28A745
+        - Orange (Warning/Highlight Accents, Chart Elements): #FD7E14
+        - Red (High Risk Accents, Chart Elements): #DC3545
+        - Light Gray (Backgrounds): #F8F9FA
+        - Medium Gray (Borders, Subtle Text): #6C757D
+        - Dark Gray/Black (Main Text): #212529
+        - White (Card Backgrounds, Text on Dark): #FFFFFF
+
+        Visualization Choices Summary (Confirming NO SVG, NO MERMAID JS):
+        - Process Flow (Slide 4): Goal: Organize. Chosen: HTML/CSS Diagram. Justification: Clearly shows process stages. Method: Structured HTML with Tailwind CSS. NO SVG/MERMAID.
+        - Process Interconnections (Slide 5): Goal: Organize/Relationships. Chosen: HTML/CSS Diagram. Justification: Shows connections. Method: Structured HTML with Tailwind CSS. NO SVG/MERMAID.
+        - Risk Matrix (Slide 8): Goal: Organize/Compare. Chosen: Styled HTML Table. Justification: Directly represents source matrix. Method: HTML <table> with Tailwind CSS. NO SVG/MERMAID.
+        - Risk Level Distribution (Slide 8): Goal: Compare/Inform. Chosen: Bar Chart. Justification: Compares counts across risk levels. Library: Chart.js (Canvas). NO SVG/MERMAID.
+        - Hierarchy of Controls (Slide 9): Goal: Organize. Chosen: HTML/CSS Pyramid or Ordered List. Justification: Shows hierarchy. Method: Structured HTML with Tailwind CSS. NO SVG/MERMAID.
+        - Tables for Likelihood, Severity, Acceptance Criteria, Records: Goal: Organize/Inform. Chosen: HTML Tables. Justification: Clear data presentation. Method: HTML <table> with Tailwind CSS. NO SVG/MERMAID.
+        - Lists for other textual information: Goal: Inform/Organize. Chosen: HTML Lists. Justification: Structured text. Method: HTML <ul>/<ol>/<dl> with Tailwind CSS. NO SVG/MERMAID.
+        - Icons: Unicode characters. NO SVG.
+
+        Confirmation: NEITHER Mermaid JS NOR SVG were used anywhere in this output. All diagrams are HTML/CSS based. All charts are Chart.js (Canvas).
+    -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif; /* Assuming Inter is a fallback, system fonts will likely be used */
+            background-color: #F8F9FA; /* Light Gray Background */
+        }
+        .brand-dark-blue { color: #0A2B4E; }
+        .brand-medium-blue { color: #357ABD; }
+        .brand-green { color: #28A745; }
+        .brand-orange { color: #FD7E14; }
+        .brand-red { color: #DC3545; }
+        .bg-brand-dark-blue { background-color: #0A2B4E; }
+        .bg-brand-medium-blue { background-color: #357ABD; }
+        .bg-brand-light-gray { background-color: #F8F9FA; }
+        .text-brand-dark { color: #212529; }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px; /* Example max-width */
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px; /* Base height */
+            max-height: 400px; /* Max height */
+        }
+        @media (min-width: 768px) { /* md breakpoint */
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .section-card {
+            background-color: #FFFFFF;
+            border-radius: 0.5rem; /* rounded-lg */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-md */
+            padding: 1.5rem; /* p-6 */
+            margin-bottom: 1.5rem; /* mb-6 */
+        }
+        .section-title {
+            font-size: 1.875rem; /* text-3xl */
+            font-weight: 700; /* font-bold */
+            color: #0A2B4E; /* brand-dark-blue */
+            margin-bottom: 1rem; /* mb-4 */
+            padding-bottom: 0.5rem; /* pb-2 */
+            border-bottom: 2px solid #357ABD; /* brand-medium-blue */
+        }
+        .sub-section-title {
+            font-size: 1.25rem; /* text-xl */
+            font-weight: 600; /* font-semibold */
+            color: #357ABD; /* brand-medium-blue */
+            margin-top: 1rem; /* mt-4 */
+            margin-bottom: 0.5rem; /* mb-2 */
+        }
+        .tooltip-multiline-title {
+            white-space: pre-wrap;
+        }
+        /* HTML/CSS Flowchart Styles */
+        .flowchart-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        .flowchart-box {
+            border: 2px solid #357ABD; /* brand-medium-blue */
+            padding: 0.75rem 1.5rem; /* py-3 px-6 */
+            border-radius: 0.375rem; /* rounded-md */
+            background-color: #E0E7FF; /* A light blue */
+            color: #0A2B4E; /* brand-dark-blue */
+            text-align: center;
+            min-width: 200px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .flowchart-arrow {
+            font-size: 1.5rem; /* text-2xl */
+            color: #357ABD; /* brand-medium-blue */
+            transform: rotate(90deg); /* For vertical flow */
+        }
+        /* HTML/CSS Pyramid Diagram */
+        .pyramid-container {
+            display: flex;
+            flex-direction: column-reverse; /* Base at bottom */
+            align-items: center;
+            gap: 0.25rem; /* Adjust as needed */
+        }
+        .pyramid-level {
+            padding: 0.5rem 1rem;
+            border: 1px solid #357ABD;
+            background-color: #E0E7FF;
+            color: #0A2B4E;
+            text-align: center;
+            border-radius: 0.25rem;
+        }
+        #downloadButton {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+    </style>
+<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.16 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.container{width:100%}@media (min-width: 640px){.container{max-width:640px}}@media (min-width: 768px){.container{max-width:768px}}@media (min-width: 1024px){.container{max-width:1024px}}@media (min-width: 1280px){.container{max-width:1280px}}@media (min-width: 1536px){.container{max-width:1536px}}.mx-auto{margin-left:auto;margin-right:auto}.my-6{margin-top:1.5rem;margin-bottom:1.5rem}.mb-12{margin-bottom:3rem}.mb-2{margin-bottom:0.5rem}.mb-3{margin-bottom:0.75rem}.mb-4{margin-bottom:1rem}.mb-6{margin-bottom:1.5rem}.ml-4{margin-left:1rem}.ml-6{margin-left:1.5rem}.mt-1{margin-top:0.25rem}.mt-2{margin-top:0.5rem}.mt-4{margin-top:1rem}.mt-6{margin-top:1.5rem}.grid{display:grid}.w-full{width:100%}.min-w-full{min-width:100%}.list-inside{list-style-position:inside}.list-decimal{list-style-type:decimal}.list-disc{list-style-type:disc}.list-none{list-style-type:none}.grid-cols-1{grid-template-columns:repeat(1, minmax(0, 1fr))}.gap-4{gap:1rem}.gap-6{gap:1.5rem}.space-y-1 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.25rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.25rem * var(--tw-space-y-reverse))}.space-y-2 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.5rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.5rem * var(--tw-space-y-reverse))}.space-y-3 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.75rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.75rem * var(--tw-space-y-reverse))}.space-y-4 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1rem * var(--tw-space-y-reverse))}.overflow-x-auto{overflow-x:auto}.rounded-lg{border-radius:0.5rem}.rounded-md{border-radius:0.375rem}.border{border-width:1px}.border-l-4{border-left-width:4px}.border-blue-500{--tw-border-opacity:1;border-color:rgb(59 130 246 / var(--tw-border-opacity, 1))}.border-gray-300{--tw-border-opacity:1;border-color:rgb(209 213 219 / var(--tw-border-opacity, 1))}.border-green-500{--tw-border-opacity:1;border-color:rgb(34 197 94 / var(--tw-border-opacity, 1))}.border-red-500{--tw-border-opacity:1;border-color:rgb(239 68 68 / var(--tw-border-opacity, 1))}.border-yellow-500{--tw-border-opacity:1;border-color:rgb(234 179 8 / var(--tw-border-opacity, 1))}.bg-blue-100{--tw-bg-opacity:1;background-color:rgb(219 234 254 / var(--tw-bg-opacity, 1))}.bg-gray-100{--tw-bg-opacity:1;background-color:rgb(243 244 246 / var(--tw-bg-opacity, 1))}.bg-gray-50{--tw-bg-opacity:1;background-color:rgb(249 250 251 / var(--tw-bg-opacity, 1))}.bg-green-100{--tw-bg-opacity:1;background-color:rgb(220 252 231 / var(--tw-bg-opacity, 1))}.bg-green-50{--tw-bg-opacity:1;background-color:rgb(240 253 244 / var(--tw-bg-opacity, 1))}.bg-orange-200{--tw-bg-opacity:1;background-color:rgb(254 215 170 / var(--tw-bg-opacity, 1))}.bg-red-100{--tw-bg-opacity:1;background-color:rgb(254 226 226 / var(--tw-bg-opacity, 1))}.bg-red-200{--tw-bg-opacity:1;background-color:rgb(254 202 202 / var(--tw-bg-opacity, 1))}.bg-yellow-100{--tw-bg-opacity:1;background-color:rgb(254 249 195 / var(--tw-bg-opacity, 1))}.p-2{padding:0.5rem}.p-3{padding:0.75rem}.p-4{padding:1rem}.px-4{padding-left:1rem;padding-right:1rem}.py-12{padding-top:3rem;padding-bottom:3rem}.py-2{padding-top:0.5rem;padding-bottom:0.5rem}.pl-4{padding-left:1rem}.text-left{text-align:left}.text-center{text-align:center}.text-2xl{font-size:1.5rem;line-height:2rem}.text-3xl{font-size:1.875rem;line-height:2.25rem}.text-5xl{font-size:3rem;line-height:1}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.text-xs{font-size:0.75rem;line-height:1rem}.font-bold{font-weight:700}.font-medium{font-weight:500}.font-semibold{font-weight:600}.text-blue-600{--tw-text-opacity:1;color:rgb(37 99 235 / var(--tw-text-opacity, 1))}.text-blue-700{--tw-text-opacity:1;color:rgb(29 78 216 / var(--tw-text-opacity, 1))}.text-gray-500{--tw-text-opacity:1;color:rgb(107 114 128 / var(--tw-text-opacity, 1))}.text-gray-600{--tw-text-opacity:1;color:rgb(75 85 99 / var(--tw-text-opacity, 1))}.text-gray-700{--tw-text-opacity:1;color:rgb(55 65 81 / var(--tw-text-opacity, 1))}.text-green-700{--tw-text-opacity:1;color:rgb(21 128 61 / var(--tw-text-opacity, 1))}.text-red-700{--tw-text-opacity:1;color:rgb(185 28 28 / var(--tw-text-opacity, 1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.text-yellow-700{--tw-text-opacity:1;color:rgb(161 98 7 / var(--tw-text-opacity, 1))}.shadow-md{--tw-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 4px 6px -1px var(--tw-shadow-color), 0 2px 4px -2px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow-xl{--tw-shadow:0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 20px 25px -5px var(--tw-shadow-color), 0 8px 10px -6px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.transition{transition-property:color, background-color, border-color, fill, stroke, opacity, box-shadow, transform, filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.duration-150{transition-duration:150ms}.ease-in-out{transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1)}.hover\:bg-green-700:hover{--tw-bg-opacity:1;background-color:rgb(21 128 61 / var(--tw-bg-opacity, 1))}@media (min-width: 768px){.md\:w-11\/12{width:91.666667%}.md\:w-3\/4{width:75%}.md\:w-5\/6{width:83.333333%}.md\:grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.md\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}.md\:p-8{padding:2rem}}@media (min-width: 1024px){.lg\:w-1\/2{width:50%}.lg\:w-3\/4{width:75%}.lg\:w-7\/12{width:58.333333%}.lg\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}}</style></head>
+<body class="bg-brand-light-gray text-brand-dark">
+    <button id="downloadButton" class="bg-brand-green hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out">
+        HTML 다운로드 💾
+    </button>
+
+    <div class="container mx-auto p-4 md:p-8">
+
+        <header class="text-center py-12 bg-brand-dark-blue text-white rounded-lg shadow-xl mb-12">
+            <h1 class="text-5xl font-bold mb-4">SeAH Besteel</h1>
+            <h2 class="text-3xl font-semibold mb-2">안전환경 위험성평가 업무표준 인포그래픽</h2>
+            <p class="text-xl">우리 모두의 안전을 위한 필수 과정</p>
+            <div class="mt-6 text-sm">
+                <span>작성부서: 안전팀</span> | <span>시행일자: 2025.03.01</span>
+            </div>
+        </header>
+
+        <section class="section-card" id="purpose-definition">
+            <h2 class="section-title">교육의 목적 및 위험성평가란?</h2>
+            <p class="mb-4 text-lg">오늘 교육을 통해 우리는 무엇을 배울까요?</p>
+            <ul class="list-disc list-inside mb-6 space-y-1 pl-4">
+                <li>위험성평가의 중요성을 이해하고,</li>
+                <li>우리 회사 위험성평가 업무 절차를 숙지하며,</li>
+                <li>각자의 역할과 책임을 알고 적극적으로 참여하여</li>
+                <li>안전한 작업환경을 함께 만들어갑니다!</li>
+            </ul>
+            <h3 class="sub-section-title">위험성평가(Risk Assessment)란?</h3>
+            <p class="mb-4">
+                우리 일터에 숨어있는 <strong>유해·위험요인</strong>을 미리 찾아내고, 그것이 얼마나 <strong>위험한지(발생 가능성 + 피해 심각성)</strong>를 분석하여, 위험 수준을 결정하고 필요한 <strong>감소대책</strong>을 세워 실행하는 체계적인 과정입니다.
+            </p>
+            <p class="p-4 bg-blue-100 border-l-4 border-blue-500 text-blue-700 rounded-md">
+                <span class="font-bold text-lg">💡 쉽게 말해, "미리 위험을 알고 대비하자!"는 것입니다.</span>
+            </p>
+        </section>
+
+        <section class="section-card" id="overview">
+            <h2 class="section-title">우리 회사 위험성평가 업무 개요</h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="sub-section-title">📜 문서 정보</h3>
+                    <ul class="list-none space-y-1">
+                        <li><strong>문서번호:</strong> SB-A-5602</li>
+                        <li><strong>프로세스 구분:</strong> 지원(SP) 프로세스</li>
+                        <li><strong>Level:</strong> MAIN</li>
+                        <li><strong>관리책임자:</strong> 안전팀</li>
+                        <li><strong>시행일자:</strong> 2025.03.01</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="sub-section-title">🎯 위험성평가, 왜 필요할까요? (목적)</h3>
+                    <p class="mb-3">우리 회사의 모든 활동, 제품, 공정 및 서비스에서 발생할 수 있는 <strong>위험요소를 사전에 파악하고 평가</strong>합니다.</p>
+                    <p>이를 통해 <strong>사고와 재해를 예방</strong>하여 안전하고 건강한 일터를 만드는 것이 최종 목표입니다.</p>
+                </div>
+            </div>
+            <h3 class="sub-section-title mt-6">🌐 어디까지 적용되나요? (적용범위)</h3>
+            <p class="mb-3">(주)세아베스틸 군산공장의 모든 제품과 관련된 조직의 <strong>모든 활동에 적용</strong>됩니다.</p>
+            <p>위험성의 <strong>모든 측면을 평가하는 전 과정</strong>이 해당됩니다.</p>
+            <div class="mt-4 p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 rounded-md">
+                <span class="font-bold">✨ 팁:</span> "나와는 상관없는 일이라고 생각하지 마세요! 우리 모두의 안전과 직결됩니다."
+            </div>
+        </section>
+
+        <section class="section-card" id="process-flow">
+            <h2 class="section-title">위험성평가 프로세스 한눈에 보기</h2>
+            <p class="text-center mb-6 text-gray-700">위험성평가는 다음과 같은 입력, 처리, 출력의 단계를 거칩니다.</p>
+            <div class="flowchart-container">
+                <div class="flowchart-box">
+                    <h3 class="font-semibold text-lg mb-2">INPUT (입력)</h3>
+                    <ul class="text-sm text-left list-disc list-inside">
+                        <li>선행 프로세스/공급자: 위험성평가 계획, 외주업체 관리 등</li>
+                        <li>입력 정보/입력물: 공정정보, 유해위험요인, 가능성/중대성</li>
+                        <li>수단 (HW/SW): SHE 시스템, Excel 등</li>
+                        <li>관련 규정/지침: 안전보건관리규정 등</li>
+                    </ul>
+                </div>
+                <div class="flowchart-arrow">⬇️</div>
+                <div class="flowchart-box">
+                    <h3 class="font-semibold text-lg mb-2">PROCESS (처리)</h3>
+                    <p class="font-bold text-blue-600 mb-2">핵심 프로세스: 위험성 평가</p>
+                    <ol class="text-sm text-left list-decimal list-inside">
+                        <li>[1단계] 계획 수립</li>
+                        <li>[2단계] 위험성 파악</li>
+                        <li>[3단계] 위험성 추정 및 결정</li>
+                        <li>[4단계] 위험성 감소대책 수립 및 실행</li>
+                        <li>[5단계] 기록 및 공유</li>
+                    </ol>
+                    <p class="mt-2 text-xs">교육지식/SKILL: KRAS기법, 산업안전보건법 등</p>
+                </div>
+                <div class="flowchart-arrow">⬇️</div>
+                <div class="flowchart-box">
+                    <h3 class="font-semibold text-lg mb-2">OUTPUT (출력)</h3>
+                    <ul class="text-sm text-left list-disc list-inside">
+                        <li>출력정보/출력물: 위험성평가 결과, 감소대책 계획서</li>
+                        <li>후행 프로세스/고객: 안전보건 부적합 처리, 비상시 대비 대응</li>
+                        <li>프로세스 모니터링: 재해율, 감소대책 실행률 등</li>
+                    </ul>
+                </div>
+            </div>
+            <p class="mt-6 text-center p-3 bg-green-100 border-l-4 border-green-500 text-green-700 rounded-md">
+                "위험성평가는 단순히 문서를 만드는 작업이 아니라, 실제 행동으로 이어져야 합니다!"
+            </p>
+        </section>
+
+        <section class="section-card" id="process-interconnections">
+            <h2 class="section-title">위험성평가 프로세스 연관도</h2>
+            <p class="mb-6 text-gray-700">위험성평가는 단독으로 존재하는 것이 아니라, 회사의 다양한 안전보건 활동과 유기적으로 연결되어 운영됩니다. 다음은 주요 연관 프로세스 예시입니다.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="p-4 border border-gray-300 rounded-lg bg-gray-50"><strong>안전보건 목표 및 계획 수립</strong> ↔️ 위험성평가</div>
+                <div class="p-4 border border-gray-300 rounded-lg bg-gray-50"><strong>설비 관리</strong> ↔️ 위험성평가</div>
+                <div class="p-4 border border-gray-300 rounded-lg bg-gray-50"><strong>변경 관리</strong> ↔️ 위험성평가</div>
+                <div class="p-4 border border-gray-300 rounded-lg bg-gray-50"><strong>구매 관리 (신규 물질/설비)</strong> ↔️ 위험성평가</div>
+                <div class="p-4 border border-gray-300 rounded-lg bg-gray-50"><strong>작업허가</strong> (결과 활용) ↔️ 위험성평가</div>
+                <div class="p-4 border border-gray-300 rounded-lg bg-gray-50"><strong>교육훈련</strong> (결과 공유) ↔️ 위험성평가</div>
+                <div class="p-4 border border-gray-300 rounded-lg bg-gray-50"><strong>비상대응</strong> (결과 반영) ↔️ 위험성평가</div>
+                <div class="p-4 border border-gray-300 rounded-lg bg-gray-50"><strong>사고조사 및 재발방지</strong> ➡️ 위험성평가 (재검토)</div>
+            </div>
+        </section>
+
+        <section class="section-card" id="planning">
+            <h2 class="section-title">[1단계] 계획 수립: 꼼꼼한 준비가 안전의 시작!</h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="sub-section-title">🗓️ 1. 시기 선정: 언제 평가해야 할까요?</h3>
+                    <p><strong>정기평가:</strong> 매년 1회, 전체 공정 실시</p>
+                    <p><strong>수시평가 (즉시):</strong></p>
+                    <ul class="list-disc list-inside pl-4 text-sm">
+                        <li>건설물 설치·이전·변경·해체 시</li>
+                        <li>새로운 기계·기구·설비·원재료 도입/변경 시</li>
+                        <li>정비 또는 보수 시</li>
+                        <li>작업방법/절차 신규 도입/변경 시</li>
+                        <li>중대산업사고/산업재해 발생 시 (아차사고 포함!)</li>
+                        <li>기타 필요시 (예: PSM 설비 관련)</li>
+                    </ul>
+                    <p class="text-xs mt-1"><em>누가? 부서장 주관, 안전담당자 협조</em></p>
+                </div>
+                <div>
+                    <h3 class="sub-section-title">👥 2. 평가자 선정: 누가 참여해야 할까요?</h3>
+                    <p><strong>필수 참여:</strong></p>
+                    <ul class="list-disc list-inside pl-4 text-sm">
+                        <li>부서 관리감독자 (부서장, 팀장, 기장 등)</li>
+                        <li>부서 안전담당자</li>
+                        <li>부서 모든 근로자 (사무직, 기능직 모두!)</li>
+                    </ul>
+                    <p><strong>교육은 필수!</strong> 위험성평가 지식 및 방법 교육</p>
+                    <p class="text-xs mt-1"><em>누가? 부서장, 안전담당자가 평가자 선정</em></p>
+                </div>
+                <div>
+                    <h3 class="sub-section-title">🎯 3. 평가 대상 선정: 무엇을 평가해야 할까요?</h3>
+                     <ul class="list-disc list-inside pl-4 text-sm">
+                        <li>모든 유해·위험요인 (작업 중 설비 포함)</li>
+                        <li>과거 산업재해 발생 작업, 위험한 일 발생 작업</li>
+                        <li>정상 작업 외 비정상 작업도 포함</li>
+                        <li>(단, 매우 경미한 부상/질병만 예상 시 제외 가능)</li>
+                        <li>묶어서 평가 가능 (동일 작업 시)</li>
+                    </ul>
+                    <p class="text-xs mt-1"><em>누가? 선정된 평가자가 대상 선정</em></p>
+                </div>
+                <div>
+                    <h3 class="sub-section-title">📚 4. 안전보건정보 사전조사: 어떤 자료를 참고해야 할까요?</h3>
+                     <ul class="list-disc list-inside pl-4 text-sm">
+                        <li>작업표준, 작업절차서</li>
+                        <li>기계·설비 사양서, 물질안전보건자료(MSDS)</li>
+                        <li>재해사례, 재해통계</li>
+                        <li>작업환경측정, 근로자 건강진단 결과</li>
+                    </ul>
+                    <p class="text-xs mt-1"><em>누가? 평가자가 관련 정보 수집 및 분석</em></p>
+                </div>
+            </div>
+        </section>
+
+        <section class="section-card" id="hazard-identification">
+            <h2 class="section-title">[2단계] 위험성 파악: 숨어있는 위험을 찾아라!</h2>
+            <p class="mb-4"><strong>유해·위험요인이란?</strong> 우리에게 부상이나 질병을 일으킬 수 있는 <strong>잠재적 가능성</strong>을 가진 모든 것!</p>
+            <h3 class="sub-section-title">🔍 어떻게 찾아낼까요? (파악 방법)</h3>
+            <ul class="list-disc list-inside mb-4 space-y-1 pl-4">
+                <li><strong>사업장 순회점검:</strong> 현장을 직접 둘러보며 위험요소 발굴 (안전관리자, 관리감독자)</li>
+                <li><strong>청취조사 (근로자 의견 청취):</strong> 현장 근로자의 생생한 경험과 의견이 중요! (안전제안, 공감위원회 등)</li>
+                <li><strong>안전보건 자료 활용:</strong> 재해조사보고서, 작업환경측정 결과, 건강진단 자료 등 참고</li>
+                <li><strong>안전보건 체크리스트 활용:</strong> 표준화된 목록을 통해 누락 없이 점검</li>
+                <li><strong>근로자 개별 유해위험요인 파악 조사표:</strong> 근로자별 작업 특성에 따른 위험요인 파악</li>
+            </ul>
+            <p class="mb-2"><strong>[참고] 재해유형별 분류 (부표#1):</strong> 넘어짐, 떨어짐, 끼임, 부딪힘, 절단·베임·찔림, 감전, 화재·폭발, 화학물질 누출·접촉 등등...</p>
+            
+            <h3 class="sub-section-title">🤔 위험 발생 가능성과 피해 규모는 어떻게 예상할까요?</h3>
+            <ul class="list-disc list-inside space-y-1 pl-4">
+                <li><strong>발생 가능성:</strong> 이 위험이 얼마나 <strong>자주</strong> 발생할 수 있을까?</li>
+                <li><strong>발생 시 피해 규모 (중대성):</strong> 만약 발생한다면 얼마나 <strong>큰 피해</strong>(다치거나 병에 걸리는 정도)를 입을까?</li>
+            </ul>
+            <div class="mt-4 p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 rounded-md">
+                 <span class="font-bold">✨ 팁:</span> "작은 위험이라도 놓치지 않는 것이 중요합니다! '설마' 하는 안일한 생각이 큰 사고로 이어질 수 있습니다."
+            </div>
+        </section>
+
+        <section class="section-card" id="estimation-decision">
+            <h2 class="section-title">[3단계] 위험성 추정 및 결정: 위험의 크기를 판단한다!</h2>
+            
+            <h3 class="sub-section-title">1. 발생 가능성: 얼마나 자주 일어날 수 있을까? (1점 ~ 4점)</h3>
+            <div class="overflow-x-auto mb-6">
+                <table class="min-w-full border border-gray-300 text-sm">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="border p-2">구분</th>
+                            <th class="border p-2">점수</th>
+                            <th class="border p-2">내용 (OR 조건)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td class="border p-2">최상</td><td class="border p-2 text-center">4</td><td class="border p-2">사고 발생 가능성 <strong>매우 높음</strong> (최근 1년 내 산업재해 발생 / 월 1회 이상 아차사고 / 일 4시간 이상 노출 / 작업표준 없음 / 안전조치 없음 등)</td></tr>
+                        <tr><td class="border p-2">상</td><td class="border p-2 text-center">3</td><td class="border p-2">사고 발생 가능성 <strong>높음</strong> (최근 3년 내 산업재해 발생 / 분기 1회 이상 아차사고 / 일 2시간 이상 노출 / 작업표준 준수 어려움 / 안전조치 미흡 등)</td></tr>
+                        <tr><td class="border p-2">중</td><td class="border p-2 text-center">2</td><td class="border p-2">사고 발생 가능성 <strong>보통</strong> (부주의 시 발생 가능) (과거 사고 이력(5년 이내) / 반기 1회 이상 아차사고 / 일 1시간 이상 노출 / 안전조치 있으나 개선 필요 등)</td></tr>
+                        <tr><td class="border p-2">하</td><td class="border p-2 text-center">1</td><td class="border p-2">사고 발생 가능성 <strong>낮음</strong> (산업재해 이력 없음 / 연 1회 이상 아차사고(잠재) / 작업 드묾 / 작업표준 준수 / 안전조치 양호 등)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="sub-section-title">2. 발생 시 피해 정도 (중대성): 얼마나 심각할 수 있을까? (1점 ~ 5점)</h3>
+            <div class="overflow-x-auto mb-6">
+                <table class="min-w-full border border-gray-300 text-sm">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="border p-2">구분</th>
+                            <th class="border p-2">점수</th>
+                            <th class="border p-2">내용 (OR 조건)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td class="border p-2">상</td><td class="border p-2 text-center">5</td><td class="border p-2"><strong>중대재해</strong> (사망, 영구적 근로불능 / 휴업손실 1년 이상)</td></tr>
+                        <tr><td class="border p-2">중상</td><td class="border p-2 text-center">4</td><td class="border p-2"><strong>장기 요양</strong> (절단, 화상, 다발골절, 감전 등 장애 잔존 / 휴업손실 3개월 ~ 1년)</td></tr>
+                        <tr><td class="border p-2">중</td><td class="border p-2 text-center">3</td><td class="border p-2"><strong>단기 요양</strong> (경미 화상, 골절 등 장애 미잔존 / 휴업손실 14일 ~ 3개월)</td></tr>
+                        <tr><td class="border p-2">중하</td><td class="border p-2 text-center">2</td><td class="border p-2"><strong>업무 지장 (응급처치 이상)</strong> (타박상, 자상, 긁힘, 삠 등 / 휴업손실 3일 ~ 14일 미만)</td></tr>
+                        <tr><td class="border p-2">하</td><td class="border p-2 text-center">1</td><td class="border p-2"><strong>업무 지장 없음 (응급처치 가능 경미 부상)</strong> (타박상, 자상, 긁힘, 삠 등 / 휴업손실 3일 미만)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <h3 class="sub-section-title">3. 위험성 수준 결정: 가능성 X 피해 정도 = 위험성!</h3>
+            <p class="mb-2">예시: 발생 가능성 '상(3점)' X 피해 정도 '중상(4점)' = 위험성 <strong>'12점 (보통)'</strong></p>
+            <p class="mb-4 text-gray-700">(문서 11페이지의 곱셈표(위험성 수준 매트릭스)를 참고하여 위험성 수준을 결정합니다. 일반적으로 색상으로 구분된 매트릭스 형태입니다.)</p>
+            <div class="chart-container mb-6">
+                <canvas id="riskLevelDistributionChart" height="350" style="display: block; box-sizing: border-box; height: 350px; width: 600px;" width="600"></canvas>
+            </div>
+            <p class="text-xs text-center text-gray-500 mb-6">위험성 수준별 분포 (샘플 데이터)</p>
+
+
+            <h3 class="sub-section-title">4. 허용 가능한 위험인가? (허용/불허용 판단 기준)</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full border border-gray-300 text-sm">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="border p-2">위험성 수준</th><th class="border p-2">구분</th><th class="border p-2">관리기준 (허용/불허용 판단)</th><th class="border p-2">후속관리</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="bg-green-50"><td class="border p-2">1~4점</td><td class="border p-2">매우 낮음</td><td class="border p-2">허용</td><td class="border p-2">현재 안전조치 확인 및 관리</td></tr>
+                        <tr class="bg-green-100"><td class="border p-2">5~8점</td><td class="border p-2">낮음</td><td class="border p-2">허용</td><td class="border p-2">현재 안전조치 확인 및 관리 (필요시 감소대책)</td></tr>
+                        <tr class="bg-yellow-100"><td class="border p-2">9~12점</td><td class="border p-2">보통</td><td class="border p-2">허용</td><td class="border p-2">현재 안전조치 확인 및 관리 (필요시 감소대책)</td></tr>
+                        <tr class="bg-orange-200"><td class="border p-2">13~16점</td><td class="border p-2">높음</td><td class="border p-2 brand-orange font-bold">불허용</td><td class="border p-2"><strong>감소대책 수립 및 개선 조치 필수!</strong></td></tr>
+                        <tr class="bg-red-200"><td class="border p-2">17~20점</td><td class="border p-2">매우 높음</td><td class="border p-2 brand-red font-bold">불허용</td><td class="border p-2"><strong>감소대책 수립 및 개선 조치 필수! (즉시 개선 필요 시 잠정조치)</strong></td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-4 p-3 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-md">
+                 <span class="font-bold">🚨 중요:</span> "위험성 수준 '높음' 이상은 반드시 개선해야 합니다! 우리 모두의 안전을 위해 타협은 없습니다!"
+            </div>
+        </section>
+
+        <section class="section-card" id="reduction-measures">
+            <h2 class="section-title">[4단계] 위험성 감소대책 수립 및 실행: 안전을 확보하라!</h2>
+            <h3 class="sub-section-title">판단 결과에 따른 조치</h3>
+            <ul class="list-disc list-inside mb-4 space-y-2 pl-4">
+                <li><strong>허용 가능한 위험 (위험성 낮음 ~ 보통):</strong> 현재 안전조치(관리대책)를 지속 유지/관리. 필요시 더 안전한 방법 검토/개선. <br><em class="text-sm">"괜찮다고 안심하지 말고, 더 안전해질 수 있도록 노력해요!"</em></li>
+                <li><strong>허용 불가능한 위험 (위험성 높음 ~ 매우 높음):</strong> 반드시! 위험성 감소대책 수립 및 실행. <br><em class="text-sm">"위험을 방치하는 것은 사고를 부르는 것과 같습니다!"</em></li>
+            </ul>
+
+            <h3 class="sub-section-title">위험성 감소대책 종류와 우선순위 (Hierarchy of Controls)</h3>
+            <p class="mb-4 text-gray-700">다음은 위험성 감소대책의 우선순위입니다. 가장 효과적인 것부터 적용합니다.</p>
+            <div class="pyramid-container">
+                <div class="pyramid-level w-full md:w-3/4 lg:w-1/2" style="background-color: #FFEBCC; border-color: #FD7E14;">
+                    <strong class="brand-orange">5. 개인보호구 지급 및 착용</strong>
+                    <p class="text-xs">(예: 안전모, 안전화, 보안경, 방독마스크 등)</p>
+                </div>
+                <div class="pyramid-level w-full md:w-5/6 lg:w-7/12" style="background-color: #D1E7DD; border-color: #28A745;">
+                    <strong class="brand-green">4. 관리적 대책</strong>
+                    <p class="text-xs">(예: 작업절차서 정비, 안전교육 강화, 작업자 교대 등)</p>
+                </div>
+                 <div class="pyramid-level w-full md:w-11/12 lg:w-3/4" style="background-color: #CFE2FF; border-color: #357ABD;">
+                    <strong class="brand-medium-blue">3. 공학적 대책</strong>
+                    <p class="text-xs">(예: 인터록, 방호장치, 안전울타리 설치 등)</p>
+                </div>
+                <div class="pyramid-level w-full" style="background-color: #F8D7DA; border-color: #DC3545;">
+                    <strong class="brand-red">1 &amp; 2. 본질적(근본적) 대책</strong>
+                    <p class="text-xs">(위험원 제거 또는 대체: 예: 자동화, 덜 위험한 물질로 대체)</p>
+                </div>
+            </div>
+            <p class="mt-4 text-sm text-gray-600 text-center">가장 효과적인 대책 (제거/대체) 🔼 가장 덜 효과적인 대책 (개인보호구)</p>
+
+
+            <h3 class="sub-section-title mt-6">개선 후, 다시 한번 확인!</h3>
+            <ul class="list-disc list-inside space-y-1 pl-4">
+                <li>감소대책 실행 후, 해당 작업의 위험성 수준이 실제로 낮아졌는지 <strong>재평가</strong>합니다.</li>
+                <li>위험성이 충분히 낮아지지 않았다면, <strong>추가적인 감소대책을 수립하고 실행</strong>해야 합니다.</li>
+                <li>중대재해/중대산업사고 우려가 높은 위험은 개선에 시간이 오래 걸릴 경우, <strong>즉시 잠정적인 조치를 우선 시행</strong>합니다.</li>
+                <li>이러한 내용은 <strong>반드시 근로자에게 알려야 합니다!</strong></li>
+            </ul>
+        </section>
+
+        <section class="section-card" id="recording-sharing">
+            <h2 class="section-title">[5단계] 기록 및 공유: 모두가 알고 실천하도록!</h2>
+            <div class="grid md:grid-cols-3 gap-6">
+                <div>
+                    <h3 class="sub-section-title">📣 1. 관리대책/감소대책 이행 및 공유</h3>
+                    <p class="mb-2">수립된 관리대책 및 감소대책은 <strong>반드시 이행</strong>되어야 합니다.</p>
+                    <p>부서장은 위험성평가 결과 및 대책을 해당 작업 <strong>근로자에게 명확히 공유</strong>해야 합니다. (작업장 게시, 교육 등)</p>
+                    <em class="text-sm">"나만 아는 안전 정보는 소용없어요! 모두가 알아야 안전해집니다."</em>
+                </div>
+                <div>
+                    <h3 class="sub-section-title">💾 2. 모니터링 및 기록 유지</h3>
+                    <p class="mb-2">부서장은 위험성평가 관리/감소 대책 이행 여부를 <strong>지속적으로 모니터링</strong>합니다.</p>
+                    <p>위험성평가 결과 및 이행 상황은 <strong>SHE(통합시스템)에 기록하고 유지</strong>합니다. (KRAS+SEAH 양식 등 <strong>3년 보존</strong>)</p>
+                     <em class="text-sm">"기록은 책임의 증거이자, 미래의 안전을 위한 자산입니다."</em>
+                </div>
+                <div>
+                    <h3 class="sub-section-title">🧐 3. 정기적인 점검 및 시정조치</h3>
+                    <p class="mb-2">안전팀은 이행 여부 및 필요 조치 사항을 <strong>정기적으로 점검하고 지도</strong>합니다 (반기 1회 이상).</p>
+                    <p class="mb-2">미흡/부적합 사항은 <strong>즉시 시정조치를 요구하고 결과를 확인</strong>합니다.</p>
+                    <p>점검 결과는 <strong>안전보건관리책임자 및 경영책임자에게 보고</strong>하고, 필요시 시정 조치합니다.</p>
+                    <em class="text-sm">"지속적인 관심과 점검만이 안전문화를 정착시킬 수 있습니다."</em>
+                </div>
+            </div>
+        </section>
+
+        <section class="section-card" id="terminology">
+            <h2 class="section-title">핵심 용어 정리</h2>
+            <dl class="space-y-3">
+                <div><dt class="font-semibold brand-medium-blue">위험성평가</dt><dd class="text-sm ml-4">유해·위험요인을 파악하고, 발생 가능성(빈도)과 중대성(강도)을 추정·결정하여 감소대책을 수립·실행하는 일련의 과정.</dd></div>
+                <div><dt class="font-semibold brand-medium-blue">유해·위험요인</dt><dd class="text-sm ml-4">우리에게 해를 끼칠 잠재적 가능성이 있는 것의 고유한 특징이나 속성. (예: 높은 곳, 날카로운 칼날, 유독가스)</dd></div>
+                <div><dt class="font-semibold brand-medium-blue">유해·위험요인 파악</dt><dd class="text-sm ml-4">숨어있는 유해요인과 위험요인을 찾아내는 과정.</dd></div>
+                <div><dt class="font-semibold brand-medium-blue">위험성</dt><dd class="text-sm ml-4">유해·위험요인이 사망, 부상 또는 질병으로 이어질 수 있는 발생 가능성과 피해 심각성을 조합한 위험의 정도.</dd></div>
+                <div><dt class="font-semibold brand-medium-blue">위험성 추정</dt><dd class="text-sm ml-4">위험성의 크기를 예상하여 산출하는 것.</dd></div>
+                <div><dt class="font-semibold brand-medium-blue">위험성 결정</dt><dd class="text-sm ml-4">추정된 위험성의 크기가 허용 가능한 범위인지 판단하는 것.</dd></div>
+                <div><dt class="font-semibold brand-medium-blue">위험성 감소대책 수립 및 실행</dt><dd class="text-sm ml-4">허용 불가능한 위험성을 합리적으로 실천 가능한 범위에서 가능한 한 낮은 수준으로 줄이기 위한 대책을 세우고 실행하는 것.</dd></div>
+                <div><dt class="font-semibold brand-medium-blue">기록</dt><dd class="text-sm ml-4">위험성평가 활동의 근거와 결과를 문서로 작성하여 보존하는 것.</dd></div>
+            </dl>
+        </section>
+
+        <section class="section-card" id="responsibilities">
+            <h2 class="section-title">우리의 책임과 권한</h2>
+            <ul class="space-y-4">
+                <li><strong>안전보건총괄책임자:</strong> 전체 위험성평가 총괄 관리, 전 부서 시행 및 개선여부 점검.</li>
+                <li><strong>안전보건 전담부서 (안전팀):</strong> 전체 위험성평가 계획 수립 및 관리, 전 부서 시행 및 개선여부 점검.</li>
+                <li><strong>관련부서 및 파트너사 (우리 모두!):</strong>
+                    <ul class="list-disc list-inside ml-6 mt-1 text-sm space-y-1">
+                        <li><strong>팀장(관리감독자):</strong> 관할 구역(파트너사 포함) 주요 위험요인 포함 작업 위험성평가 실시 및 조치계획 수립.</li>
+                        <li><strong>모든 부서원 및 파트너사 직원:</strong> 각자 위험성평가 실시, 조치계획 이행 및 결과 교육.</li>
+                    </ul>
+                </li>
+            </ul>
+            <div class="mt-4 p-3 bg-blue-100 border-l-4 border-blue-500 text-blue-700 rounded-md">
+                <span class="font-bold">🤝 참여:</span> "안전은 누구 한 사람의 책임이 아닙니다. 우리 모두의 적극적인 참여가 필요합니다!"
+            </div>
+        </section>
+
+        <section class="section-card" id="record-keeping">
+            <h2 class="section-title">기록물의 종류 및 보존</h2>
+            <h3 class="sub-section-title">어떤 기록을 남겨야 할까요? (주요 기록)</h3>
+            <div class="overflow-x-auto mb-6">
+                <table class="min-w-full border border-gray-300 text-sm">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="border p-2">No</th><th class="border p-2">기록명</th><th class="border p-2">양식번호</th><th class="border p-2">구분</th><th class="border p-2">관리부서</th><th class="border p-2">보존년한</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td class="border p-2 text-center">1</td><td class="border p-2">KRAS+SEAH 기법 양식</td><td class="border p-2">SB-D-5602-F1</td><td class="border p-2">공통</td><td class="border p-2">전 부서</td><td class="border p-2">3년</td></tr>
+                        <tr><td class="border p-2 text-center">2</td><td class="border p-2">Check list 기법 양식</td><td class="border p-2">SB-D-5602-F2</td><td class="border p-2">공통</td><td class="border p-2">전 부서</td><td class="border p-2">3년</td></tr>
+                        <tr><td class="border p-2 text-center">3</td><td class="border p-2">작업안전분석기법 지침</td><td class="border p-2">SB-D-5602-F3</td><td class="border p-2">공통</td><td class="border p-2">전 부서</td><td class="border p-2">3년</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <h3 class="sub-section-title">관련된 우리 회사 규정은 무엇이 있나요?</h3>
+            <ul class="list-disc list-inside pl-4 text-sm space-y-1">
+                <li>SB-A-5600 안전보건관리규정</li>
+                <li>SB-D-5601 안전보건 활동 계획 업무표준</li>
+                <li>SB-D-5608 외주공사업체 안전관리 업무표준</li>
+                <li>SB-D-5616 비상 시 대비대응 업무표준</li>
+                <li>SB-D-5617 파트너사 안전보건관리 업무표준</li>
+            </ul>
+             <div class="mt-4 p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 rounded-md">
+                <span class="font-bold">🔒 보존:</span> "모든 위험성평가 활동은 문서화하여 기록으로 남기고, 정해진 기간 동안 보존해야 합니다."
+            </div>
+        </section>
+
+        <section class="section-card text-center" id="conclusion">
+            <h2 class="section-title">맺음말</h2>
+            <p class="text-xl font-semibold brand-green mb-4">안전은 선택이 아닌 필수입니다!</p>
+            <p class="mb-3">위험성평가는 우리 스스로와 동료의 안전을 지키는 가장 효과적인 방법입니다.</p>
+            <p class="mb-3">오늘 배운 내용을 바탕으로, 작업 현장의 위험요인을 적극적으로 찾아내고 개선하는 데 동참해 주십시오.</p>
+            <p class="text-lg font-medium brand-dark-blue mb-6">작은 관심과 실천이 모여 안전한 SeAH Besteel을 만듭니다.</p>
+            <hr class="my-6">
+            <p class="text-lg mb-2">궁금한 점이 있으신가요?</p>
+            <p class="text-2xl font-bold brand-medium-blue mb-6">질의응답</p>
+            <p class="text-lg font-bold brand-dark-blue">감사합니다.</p>
+            <p class="mt-2 text-2xl font-bold brand-dark-blue">SeAH Besteel</p>
+        </section>
+
+    </div>
+
+    <script>
+        // Chart.js Label Wrapping Function
+        function wrapText(text, maxWidth) {
+            if (typeof text !== 'string') return text; // Only process strings
+            if (text.length <= maxWidth) return text;
+
+            const words = text.split(' ');
+            const lines = [];
+            let currentLine = words[0];
+
+            for (let i = 1; i < words.length; i++) {
+                if ((currentLine + " " + words[i]).length > maxWidth) {
+                    lines.push(currentLine);
+                    currentLine = words[i];
+                } else {
+                    currentLine += " " + words[i];
+                }
+            }
+            lines.push(currentLine);
+            return lines;
+        }
+
+        // Tooltip Configuration
+        const tooltipTitleCallback = function(tooltipItems) {
+            const item = tooltipItems[0];
+            let label = item.chart.data.labels[item.dataIndex];
+            if (Array.isArray(label)) {
+                return label.join(' ');
+            } else {
+                return label;
+            }
+        };
+        
+        // Sample data for Risk Level Distribution Chart
+        const riskLevelData = {
+            labels: ['매우 높음', '높음', '보통', '낮음', '매우 낮음'].map(label => wrapText(label,16)),
+            datasets: [{
+                label: '위험성 수준별 분포 (건수)',
+                data: [3, 7, 12, 5, 2], // Mocked data
+                backgroundColor: [
+                    '#DC3545', // Red - 매우 높음
+                    '#FD7E14', // Orange - 높음
+                    '#FFC107', // Yellow - 보통 (Tailwind amber-400 or similar)
+                    '#28A745', // Green - 낮음
+                    '#198754'  // Darker Green - 매우 낮음
+                ],
+                borderColor: [
+                    '#B02A37',
+                    '#C6650F',
+                    '#CCA300',
+                    '#1F8035',
+                    '#125F3C'
+                ],
+                borderWidth: 1
+            }]
+        };
+
+        const riskLevelConfig = {
+            type: 'bar',
+            data: riskLevelData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: '위험 건수'
+                        }
+                    },
+                    x: {
+                         title: {
+                            display: true,
+                            text: '위험성 수준'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false // Or true if you want to show it
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: tooltipTitleCallback
+                        }
+                    }
+                }
+            }
+        };
+
+        // Function to download HTML content
+        function downloadHTML() {
+            const htmlContent = document.documentElement.outerHTML;
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'seah_besteel_infographic.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+        }
+
+        // Render Chart and Attach Download Listener
+        window.onload = function() {
+            const riskChartCtx = document.getElementById('riskLevelDistributionChart');
+            if (riskChartCtx) {
+                 new Chart(riskChartCtx, riskLevelConfig);
+            }
+
+            const downloadBtn = document.getElementById('downloadButton');
+            if (downloadBtn) {
+                downloadBtn.addEventListener('click', downloadHTML);
+            }
+        };
+    </script>
+
+
+</body></html>
